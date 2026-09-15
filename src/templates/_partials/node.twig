@@ -1,0 +1,24 @@
+{# One element, the way Yarn shows it everywhere: a dot for its kind, its name, where it lives,
+   and a badge only when its state is worth mentioning.
+
+   @var node \justinholtweb\yarn\models\Node #}
+{% set showGroup = showGroup ?? true %}
+{% set link = link ?? true %}
+
+<span class="yarn-node">
+    <span class="yarn-dot" data-kind="{{ node.kind }}" title="{{ node.kind }}"></span>
+
+    {% if link %}
+        <a class="yarn-node-label" href="{{ node.yarnUrl(site.id ?? null) }}">{{ node.label }}</a>
+    {% else %}
+        <span class="yarn-node-label">{{ node.label }}</span>
+    {% endif %}
+
+    {% if showGroup and node.group %}
+        <span class="yarn-node-group">{{ node.group }}</span>
+    {% endif %}
+
+    {% if node.health != 'ok' %}
+        <span class="yarn-health" data-health="{{ node.health }}">{{ node.health }}</span>
+    {% endif %}
+</span>

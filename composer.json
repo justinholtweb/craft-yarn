@@ -1,0 +1,73 @@
+{
+    "name": "justinholtweb/craft-yarn",
+    "description": "See every relation on a Craft site — what points at what, what nothing points at, and what breaks if you delete it.",
+    "type": "craft-plugin",
+    "version": "5.0.0",
+    "keywords": [
+        "craft",
+        "cms",
+        "craftcms",
+        "craft-plugin",
+        "yarn",
+        "relations",
+        "related",
+        "graph",
+        "usage",
+        "orphans",
+        "audit",
+        "debug"
+    ],
+    "license": "proprietary",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "authors": [
+        {
+            "name": "Justin Holt",
+            "homepage": "https://justinholt.com"
+        }
+    ],
+    "support": {
+        "docs": "https://craft-yarn.com/docs",
+        "source": "https://github.com/justinholtweb/craft-yarn",
+        "issues": "https://github.com/justinholtweb/craft-yarn/issues"
+    },
+    "require": {
+        "php": "^8.2",
+        "ext-json": "*",
+        "craftcms/cms": "^5.3.0"
+    },
+    "require-dev": {
+        "craftcms/ecs": "dev-main",
+        "craftcms/phpstan": "dev-main",
+        "phpunit/phpunit": "^10.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "justinholtweb\\yarn\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "justinholtweb\\yarn\\tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit"
+    },
+    "config": {
+        "allow-plugins": {
+            "yiisoft/yii2-composer": true,
+            "craftcms/plugin-installer": true,
+            "craftcms/generator": true
+        }
+    },
+    "extra": {
+        "name": "Yarn",
+        "handle": "yarn",
+        "developer": "Justin Holt",
+        "developerUrl": "https://justinholt.com",
+        "documentationUrl": "https://craft-yarn.com/docs",
+        "changelogUrl": "https://raw.githubusercontent.com/justinholtweb/craft-yarn/main/CHANGELOG.md",
+        "class": "justinholtweb\\yarn\\Plugin"
+    }
+}

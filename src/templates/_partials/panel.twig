@@ -1,0 +1,30 @@
+{# The Relations panel in an element edit screen's sidebar.
+
+   Reads the relations table directly rather than the whole-site graph: this renders on every
+   element edit screen on the site, and a graph build is not something to do on the way to an
+   edit form. It therefore counts relation *fields* only — the full picture, including reference
+   tags and links, is one click away. #}
+{% do view.registerAssetBundle("justinholtweb\\yarn\\web\\assets\\cp\\CpAsset") %}
+
+<div class="yarn yarn-panel">
+    <h3>{{ "Relations"|t('yarn') }}</h3>
+
+    {% if usages|length %}
+        <p class="yarn-panel-warning">
+            {{ "{count} element(s) point at this. Deleting it will empty those fields."|t('yarn', { count: usages|length }) }}
+        </p>
+    {% endif %}
+
+    <div class="yarn-panel-counts">
+        <div class="yarn-panel-count">
+            <b>{{ uses|length }}</b>
+            {{ "points at"|t('yarn') }}
+        </div>
+        <div class="yarn-panel-count">
+            <b>{{ usages|length }}</b>
+            {{ "pointed at by"|t('yarn') }}
+        </div>
+    </div>
+
+    <a class="btn small" href="{{ yarnUrl }}">{{ "See the whole thread"|t('yarn') }}</a>
+</div>

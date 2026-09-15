@@ -1,0 +1,82 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+
+{% set title = "Browse relations"|t('yarn') %}
+{% set selectedSubnavItem = 'browse' %}
+{% do view.registerAssetBundle("justinholtweb\\yarn\\web\\assets\\cp\\CpAsset") %}
+
+{% block content %}
+    <div class="yarn">
+        {% include 'yarn/_partials/toolbar' %}
+
+        <form method="get" class="yarn-toolbar">
+            <input type="hidden" name="site" value="{{ site.handle }}">
+
+            <div>
+                <label for="search">{{ "Search"|t('yarn') }}</label>
+                <input id="search" class="text" type="search" name="search" value="{{ search }}"
+                       placeholder="{{ "Element or field name"|t('yarn') }}" style="min-width: 240px;">
+            </div>
+
+            <div>
+                <label for="kind">{{ "Relation kind"|t('yarn') }}</label>
+                {{ forms.select({
+                    id: 'kind',
+                    name: 'kind',
+                    value: kind,
+                    options: [{ label: "Any"|t('yarn'), value: '' }]|merge(kinds),
+                }) }}
+            </div>
+
+            <div>
+                <label for="group">{{ "Source"|t('yarn') }}</label>
+                <select id="group" name="group">
+                    <option value="">{{ "Anywhere"|t('yarn') }}</option>
+                    {% for candidate in groups %}
+                        <option value="{{ candidate.key }}" {{ candidate.key == group ? 'selected' }}>
+                            {{ candidate.label }} ({{ candidate.count }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label>&nbsp;</label>
+                <button type="submit" class="btn submit">{{ "Filter"|t('yarn') }}</button>
+            </div>
+        </form>
+
+        {% if rows is empty %}
+            <div class="yarn-empty">
+                {{ "No relations match that."|t('yarn') }}
+            </div>
+        {% else %}
+            <table class="data fullwidth yarn-table">
+                <thead>
+                    <tr>
+                        <th>{{ "From"|t('yarn') }}</th>
+                        <th>{{ "Through"|t('yarn') }}</th>
+                        <th>{{ "To"|t('yarn') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                        <tr>
+                            <td>{% include 'yarn/_partials/node' with { node: row.from } %}</td>
+                            <td>
+                                <div>{{ row.edge.label ?: row.edge.kindLabel() }}</div>
+                                <div class="yarn-relation-kind">{{ row.edge.kindLabel() }}</div>
+                                {% if row.edge.via %}
+                                    <div class="yarn-via">{{ "via {field}"|t('yarn', { field: row.edge.via }) }}</div>
+                                {% endif %}
+                            </td>
+                            <td>{% include 'yarn/_partials/node' with { node: row.to } %}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            {% include 'yarn/_partials/pagination' %}
+        {% endif %}
+    </div>
+{% endblock %}

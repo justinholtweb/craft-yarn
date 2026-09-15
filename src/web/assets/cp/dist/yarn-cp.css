@@ -1,0 +1,366 @@
+/* Yarn — control panel styles.
+   Colours are declared once here as custom properties and used by both the CSS and the map's
+   renderer, which reads them off the computed style rather than keeping a second copy. */
+
+.yarn {
+    --yarn-accent: #4F46B8;
+    --yarn-entry: #4F46B8;
+    --yarn-asset: #0B8A6A;
+    --yarn-category: #B4690E;
+    --yarn-tag: #8E5AB8;
+    --yarn-user: #2F6FB8;
+    --yarn-global: #C2445C;
+    --yarn-other: #6B7280;
+
+    --yarn-ok: #3E8F56;
+    --yarn-disabled: #9AA3AF;
+    --yarn-pending: #3C7BB8;
+    --yarn-expired: #B4690E;
+    --yarn-deleted: #C0392B;
+    --yarn-absent: #C0392B;
+}
+
+/* ---------------------------------------------------------------- toolbar */
+
+.yarn-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.yarn-toolbar .yarn-toolbar-spacer {
+    flex: 1 1 auto;
+}
+
+.yarn-toolbar label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--medium-text-color, #606d7b);
+    margin-bottom: 3px;
+}
+
+/* ------------------------------------------------------------------ stats */
+
+.yarn-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.yarn-stat {
+    background: var(--gray-050, #f7f8f9);
+    border: 1px solid var(--hairline-color, rgba(51, 64, 77, .1));
+    border-radius: 6px;
+    padding: 12px 14px;
+}
+
+.yarn-stat-value {
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.1;
+    color: var(--text-color, #3f4d5a);
+}
+
+.yarn-stat-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--medium-text-color, #606d7b);
+    margin-top: 4px;
+}
+
+/* ------------------------------------------------------------------- node */
+
+.yarn-node {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    max-width: 100%;
+}
+
+.yarn-dot {
+    flex: 0 0 auto;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--yarn-other);
+}
+
+.yarn-dot[data-kind="entry"] { background: var(--yarn-entry); }
+.yarn-dot[data-kind="asset"] { background: var(--yarn-asset); }
+.yarn-dot[data-kind="category"] { background: var(--yarn-category); }
+.yarn-dot[data-kind="tag"] { background: var(--yarn-tag); }
+.yarn-dot[data-kind="user"] { background: var(--yarn-user); }
+.yarn-dot[data-kind="global"] { background: var(--yarn-global); }
+
+.yarn-node-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.yarn-node-group {
+    color: var(--medium-text-color, #606d7b);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.yarn-health {
+    font-size: 11px;
+    border-radius: 9px;
+    padding: 1px 7px;
+    border: 1px solid currentColor;
+    white-space: nowrap;
+}
+
+.yarn-health[data-health="ok"] { color: var(--yarn-ok); }
+.yarn-health[data-health="disabled"] { color: var(--yarn-disabled); }
+.yarn-health[data-health="pending"] { color: var(--yarn-pending); }
+.yarn-health[data-health="expired"] { color: var(--yarn-expired); }
+.yarn-health[data-health="deleted"],
+.yarn-health[data-health="absent"] { color: var(--yarn-deleted); }
+
+/* ------------------------------------------------------------------ table */
+
+.yarn-table td,
+.yarn-table th {
+    vertical-align: top;
+}
+
+.yarn-relation-kind {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--medium-text-color, #606d7b);
+}
+
+.yarn-via {
+    font-size: 12px;
+    color: var(--medium-text-color, #606d7b);
+}
+
+.yarn-empty {
+    padding: 36px 20px;
+    text-align: center;
+    color: var(--medium-text-color, #606d7b);
+    border: 1px dashed var(--hairline-color, rgba(51, 64, 77, .2));
+    border-radius: 6px;
+}
+
+/* ----------------------------------------------------------------- groups */
+
+.yarn-group {
+    margin-bottom: 22px;
+}
+
+.yarn-group-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.yarn-group-head h3 {
+    margin: 0;
+}
+
+/* -------------------------------------------------------------------- map */
+
+.yarn-map {
+    position: relative;
+    border: 1px solid var(--hairline-color, rgba(51, 64, 77, .1));
+    border-radius: 6px;
+    background: var(--gray-050, #f7f8f9);
+    overflow: hidden;
+    min-height: 560px;
+}
+
+.yarn-map svg {
+    display: block;
+    width: 100%;
+    height: 620px;
+    touch-action: none;
+    cursor: grab;
+}
+
+.yarn-map svg.is-panning {
+    cursor: grabbing;
+}
+
+.yarn-edge {
+    stroke: rgba(51, 64, 77, .22);
+    stroke-width: 1;
+    fill: none;
+}
+
+.yarn-edge.is-ref { stroke-dasharray: 3 3; }
+.yarn-edge.is-url { stroke-dasharray: 1 3; }
+.yarn-edge.is-structure { stroke-dasharray: 6 4; }
+.yarn-edge.is-lit { stroke: var(--yarn-accent); stroke-width: 2; stroke-opacity: .85; }
+.yarn-edge.is-dim { stroke-opacity: .07; }
+
+.yarn-vertex circle {
+    stroke: #fff;
+    stroke-width: 1.5;
+    cursor: pointer;
+}
+
+.yarn-vertex text {
+    font-size: 10px;
+    fill: var(--text-color, #3f4d5a);
+    pointer-events: none;
+    paint-order: stroke;
+    stroke: rgba(255, 255, 255, .85);
+    stroke-width: 3px;
+}
+
+.yarn-vertex.is-dim { opacity: .18; }
+.yarn-vertex.is-selected circle { stroke: var(--yarn-accent); stroke-width: 3; }
+
+.yarn-map-overlay {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+}
+
+.yarn-map-overlay > * {
+    pointer-events: auto;
+}
+
+.yarn-legend {
+    background: rgba(255, 255, 255, .92);
+    border: 1px solid var(--hairline-color, rgba(51, 64, 77, .1));
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    max-width: 320px;
+}
+
+.yarn-legend button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+}
+
+.yarn-legend button.is-off {
+    opacity: .35;
+}
+
+.yarn-map-status {
+    background: rgba(255, 255, 255, .92);
+    border: 1px solid var(--hairline-color, rgba(51, 64, 77, .1));
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: var(--medium-text-color, #606d7b);
+    max-width: 320px;
+}
+
+.yarn-detail {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 280px;
+    background: #fff;
+    border: 1px solid var(--hairline-color, rgba(51, 64, 77, .1));
+    border-radius: 6px;
+    padding: 12px 14px;
+    box-shadow: 0 4px 14px rgba(31, 41, 51, .1);
+    font-size: 13px;
+}
+
+.yarn-detail h4 {
+    margin: 0 0 4px;
+    word-break: break-word;
+}
+
+.yarn-detail ul {
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.yarn-detail li {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 2px 0;
+    color: var(--medium-text-color, #606d7b);
+}
+
+.yarn-detail-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.yarn-map-controls {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    display: flex;
+    gap: 6px;
+}
+
+/* ------------------------------------------------------- the sidebar panel */
+
+.yarn-panel {
+    border-top: 1px solid var(--hairline-color, rgba(51, 64, 77, .1));
+    padding-top: 12px;
+    margin-top: 12px;
+}
+
+.yarn-panel h3 {
+    margin: 0 0 6px;
+}
+
+.yarn-panel-counts {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 6px;
+}
+
+.yarn-panel-count {
+    font-size: 12px;
+    color: var(--medium-text-color, #606d7b);
+}
+
+.yarn-panel-count b {
+    display: block;
+    font-size: 18px;
+    color: var(--text-color, #3f4d5a);
+    line-height: 1.1;
+}
+
+.yarn-panel-warning {
+    color: #B4690E;
+    font-size: 12px;
+    margin-bottom: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+    .yarn-legend,
+    .yarn-map-status { background: rgba(32, 38, 45, .92); }
+    .yarn-detail { background: #20262d; }
+    .yarn-vertex text { stroke: rgba(20, 24, 28, .85); }
+    .yarn-edge { stroke: rgba(210, 220, 230, .22); }
+}

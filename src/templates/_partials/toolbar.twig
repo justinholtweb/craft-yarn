@@ -1,0 +1,52 @@
+{# The strip above every Yarn screen: which site, and when the graph was last assembled. #}
+{% import "_includes/forms" as forms %}
+
+<div class="yarn-toolbar">
+    {% if siteOptions|length > 1 %}
+        <div>
+            <label for="yarn-site">{{ "Site"|t('yarn') }}</label>
+            {{ forms.select({
+                id: 'yarn-site',
+                name: 'site',
+                options: siteOptions,
+                value: site.handle,
+                toggle: false,
+            }) }}
+        </div>
+    {% endif %}
+
+    <div class="yarn-toolbar-spacer"></div>
+
+    <div>
+        <div class="yarn-node-group">
+            {% if graph.builtAt %}
+                {{ "Assembled {when}, in {seconds}s"|t('yarn', {
+                    when: craft.app.formatter.asDatetime(graph.builtAt, 'short'),
+                    seconds: graph.buildTime,
+                }) }}
+            {% endif %}
+        </div>
+        {# Query-only href: it keeps whatever path and filters the reader is already on, without
+           this partial having to know which of the five screens included it. #}
+        <a class="btn" href="?{{ craft.app.request.queryParams|merge({ rebuild: 1 })|url_encode }}">
+            {{ "Rebuild"|t('yarn') }}
+        </a>
+        {% if currentUser.can('yarn:export') %}
+            <a class="btn" href="{{ actionUrl('yarn/export', { site: site.handle, format: 'csv' }) }}">{{ "CSV"|t('yarn') }}</a>
+            <a class="btn" href="{{ actionUrl('yarn/export', { site: site.handle, format: 'json' }) }}">{{ "JSON"|t('yarn') }}</a>
+        {% endif %}
+    </div>
+</div>
+
+{% js %}
+(function () {
+    var select = document.getElementById('yarn-site');
+    if (!select) { return; }
+    select.addEventListener('change', function () {
+        var url = new URL(window.location.href);
+        url.searchParams.set('site', select.value);
+        url.searchParams.delete('page');
+        window.location.href = url.toString();
+    });
+}());
+{% endjs %}

@@ -1,0 +1,188 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+
+{% set title = "Yarn settings"|t('yarn') %}
+{% set selectedSubnavItem = 'settings' %}
+{% do view.registerAssetBundle("justinholtweb\\yarn\\web\\assets\\cp\\CpAsset") %}
+
+{% block content %}
+    <div class="yarn">
+        {% if readOnly %}
+            <div class="readable">
+                <blockquote class="note warning">
+                    {{ "Admin changes are disabled in this environment, so these are read-only here. Edit them in config/yarn.php, or on an environment where changes are allowed."|t('yarn') }}
+                </blockquote>
+            </div>
+        {% endif %}
+
+        <form method="post" accept-charset="UTF-8">
+            {{ csrfInput() }}
+            {{ actionInput('yarn/settings/save') }}
+
+            <h2>{{ "What counts as a relation"|t('yarn') }}</h2>
+
+            {{ forms.checkboxGroupField({
+                label: "Extra relation sources"|t('yarn'),
+                instructions: "Relation fields are always read. These are the ones that cost something: reference tags and links mean reading every field value on the site."|t('yarn'),
+                name: 'settings[sources]',
+                options: sourceOptions,
+                values: settings.sources,
+                disabled: readOnly,
+            }) }}
+
+            {{ forms.lightswitchField({
+                label: "Roll up nested elements"|t('yarn'),
+                instructions: "Report a relation held inside a Matrix block as belonging to the page that contains it. Off, every block is a node of its own."|t('yarn'),
+                name: 'settings[rollUpNested]',
+                on: settings.rollUpNested,
+                disabled: readOnly,
+            }) }}
+
+            {{ forms.lightswitchField({
+                label: "Include disabled elements"|t('yarn'),
+                instructions: "Leave on unless the map is only meant to describe what is live."|t('yarn'),
+                name: 'settings[includeDisabled]',
+                on: settings.includeDisabled,
+                disabled: readOnly,
+            }) }}
+
+            {{ forms.multiselectField({
+                label: "Ignored fields"|t('yarn'),
+                instructions: "Relation fields to leave out — usually one that relates everything to everything and drowns the map."|t('yarn'),
+                name: 'settings[ignoredFields]',
+                options: fieldOptions,
+                values: settings.ignoredFields,
+                disabled: readOnly,
+            }) }}
+
+            {{ forms.multiselectField({
+                label: "Excluded sources"|t('yarn'),
+                instructions: "Sections, volumes and groups to leave out of the graph entirely."|t('yarn'),
+                name: 'settings[excludedGroups]',
+                options: groupOptions,
+                values: settings.excludedGroups,
+                disabled: readOnly,
+            }) }}
+
+            <hr>
+
+            <h2>{{ "Reporting"|t('yarn') }}</h2>
+
+            {{ forms.checkboxGroupField({
+                label: "Report orphans for"|t('yarn'),
+                instructions: "Which kinds of element to list when nothing points at them."|t('yarn'),
+                name: 'settings[orphanKinds]',
+                options: kindOptions,
+                values: settings.orphanKinds,
+                disabled: readOnly,
+            }) }}
+
+            {{ forms.lightswitchField({
+                label: "Ignore elements with their own URL"|t('yarn'),
+                instructions: "On, an entry nothing links to is not reported as an orphan — it is still reachable from its own URL. Turn it on when the question is “what is unreachable”, off when it is “what is unused”."|t('yarn'),
+                name: 'settings[orphansIgnoreRoutable]',
+                on: settings.orphansIgnoreRoutable,
+                disabled: readOnly,
+            }) }}
+
+            {{ forms.textField({
+                label: "Cycle limit"|t('yarn'),
+                instructions: "Stop after this many circular relations."|t('yarn'),
+                name: 'settings[cycleLimit]',
+                value: settings.cycleLimit,
+                size: 6,
+                type: 'number',
+                disabled: readOnly,
+                errors: settings.getErrors('cycleLimit'),
+            }) }}
+
+            <hr>
+
+            <h2>{{ "Performance"|t('yarn') }}</h2>
+
+            {{ forms.textField({
+                label: "Cache duration"|t('yarn'),
+                instructions: "Seconds to reuse an assembled graph. It is thrown away whenever an element is saved or deleted, so this is a ceiling, not a staleness window. 0 rebuilds every time."|t('yarn'),
+                name: 'settings[cacheDuration]',
+                value: settings.cacheDuration,
+                size: 8,
+                type: 'number',
+                disabled: readOnly,
+                errors: settings.getErrors('cacheDuration'),
+            }) }}
+
+            {{ forms.textField({
+                label: "Map node limit"|t('yarn'),
+                instructions: "How many elements the map will draw at once. Past a few hundred the picture stops being readable before the browser stops coping."|t('yarn'),
+                name: 'settings[maxNodes]',
+                value: settings.maxNodes,
+                size: 8,
+                type: 'number',
+                disabled: readOnly,
+                errors: settings.getErrors('maxNodes'),
+            }) }}
+
+            {{ forms.textField({
+                label: "Scan batch size"|t('yarn'),
+                instructions: "Rows read at a time when scanning content for reference tags and links."|t('yarn'),
+                name: 'settings[scanBatchSize]',
+                value: settings.scanBatchSize,
+                size: 8,
+                type: 'number',
+                disabled: readOnly,
+                errors: settings.getErrors('scanBatchSize'),
+            }) }}
+
+            <hr>
+
+            <h2>{{ "Elsewhere in the control panel"|t('yarn') }}</h2>
+
+            {{ forms.lightswitchField({
+                label: "Show the Relations panel"|t('yarn'),
+                instructions: "Adds a Relations panel to the sidebar of every element edit screen."|t('yarn'),
+                name: 'settings[showElementPanel]',
+                on: settings.showElementPanel,
+                disabled: readOnly,
+            }) }}
+
+            {{ forms.selectField({
+                label: "Record deletions of elements in use"|t('yarn'),
+                instructions: "Yarn cannot stop a deletion — Craft has no cancellable hook that fires before a field has already deleted the element's nested content. What it can do is write down what was still using it."|t('yarn'),
+                name: 'settings[deleteGuard]',
+                value: settings.deleteGuard,
+                options: [
+                    { label: "Do nothing"|t('yarn'), value: 'off' },
+                    { label: "Write it to yarn.log"|t('yarn'), value: 'log' },
+                ],
+                disabled: readOnly,
+            }) }}
+
+            {{ forms.checkboxGroupField({
+                label: "Watch these element kinds"|t('yarn'),
+                name: 'settings[deleteGuardKinds]',
+                options: kindOptions,
+                values: settings.deleteGuardKinds,
+                disabled: readOnly,
+            }) }}
+
+            {{ forms.selectField({
+                label: "Log level"|t('yarn'),
+                name: 'settings[logLevel]',
+                value: settings.logLevel,
+                options: [
+                    { label: 'debug', value: 'debug' },
+                    { label: 'info', value: 'info' },
+                    { label: 'warning', value: 'warning' },
+                    { label: 'error', value: 'error' },
+                ],
+                disabled: readOnly,
+            }) }}
+
+            {% if not readOnly %}
+                <div class="buttons">
+                    <button type="submit" class="btn submit">{{ "Save"|t('yarn') }}</button>
+                </div>
+            {% endif %}
+        </form>
+    </div>
+{% endblock %}

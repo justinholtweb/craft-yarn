@@ -1,0 +1,99 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+
+{% set title = "Yarn"|t('yarn') %}
+{% set selectedSubnavItem = 'map' %}
+{% do view.registerAssetBundle("justinholtweb\\yarn\\web\\assets\\cp\\CpAsset") %}
+
+{% set kinds = {
+    entry: "Entries"|t('yarn'),
+    asset: "Assets"|t('yarn'),
+    category: "Categories"|t('yarn'),
+    tag: "Tags"|t('yarn'),
+    user: "Users"|t('yarn'),
+    global: "Globals"|t('yarn'),
+    other: "Other"|t('yarn'),
+} %}
+
+{% block content %}
+    <div class="yarn">
+        {% include 'yarn/_partials/toolbar' %}
+        {% include 'yarn/_partials/stats' %}
+
+        <div class="yarn-toolbar">
+            <div>
+                <label for="yarn-groups">{{ "Show only"|t('yarn') }}</label>
+                <select id="yarn-groups" multiple size="1" data-yarn-groups data-yarn-reload
+                        style="min-width: 220px; height: 34px;">
+                    {% for group in groups %}
+                        <option value="{{ group.key }}">{{ group.label }} ({{ group.count }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label for="yarn-search">{{ "Find"|t('yarn') }}</label>
+                <input id="yarn-search" class="text" type="search" data-yarn-search
+                       placeholder="{{ "Highlight by name"|t('yarn') }}" style="min-width: 200px;">
+            </div>
+
+            <div>
+                <label>&nbsp;</label>
+                {# On by default. The map is a picture of relations, and an element with none is a
+                   dot with no thread attached — on a normal site there are thousands of them, and
+                   they crowd out the part anybody came to look at. The count is on the cards
+                   above, and the list of them is under Findings. #}
+                <label class="yarn-node-group">
+                    <input type="checkbox" data-yarn-hide-orphans data-yarn-reload checked>
+                    {{ "Hide unconnected"|t('yarn') }}
+                </label>
+            </div>
+
+            <div data-yarn-focus hidden>
+                <label>{{ "Focused on"|t('yarn') }}</label>
+                <span data-yarn-focus-label></span>
+                <button type="button" class="btn small" data-yarn-clear-focus>{{ "Show everything"|t('yarn') }}</button>
+            </div>
+        </div>
+
+        <div class="yarn-map" data-yarn-map>
+            {# The payload the renderer reads. JSON in a script element, because a <script> holds
+               raw text and HTML entities inside it are never decoded. #}
+            <script type="application/json" data-yarn-config>{{ {
+                site: site.handle,
+                depth: 2,
+                focus: null,
+                maxNodes: maxNodes,
+                elementUrlTemplate: cpUrl('yarn/element/__ID__', { site: site.handle }),
+            }|json_encode|raw }}</script>
+
+            <svg role="img" aria-label="{{ "Relation map"|t('yarn') }}"></svg>
+
+            <div class="yarn-map-overlay">
+                <div class="yarn-legend" data-yarn-legend>
+                    {% for key, label in kinds %}
+                        <button type="button" data-kind="{{ key }}">
+                            <span class="yarn-dot" data-kind="{{ key }}"></span>{{ label }}
+                        </button>
+                    {% endfor %}
+                </div>
+                <div class="yarn-map-status" data-yarn-status>{{ "Loading…"|t('yarn') }}</div>
+            </div>
+
+            <div class="yarn-detail" data-yarn-detail hidden></div>
+
+            <div class="yarn-map-controls">
+                <button type="button" class="btn small" data-yarn-fit>{{ "Fit"|t('yarn') }}</button>
+                <button type="button" class="btn small" data-yarn-shake>{{ "Re-settle"|t('yarn') }}</button>
+            </div>
+        </div>
+
+        <p class="light" style="margin-top: 10px;">
+            {{ "Drag to pan, scroll to zoom, click an element to light up its relations, double-click to see only its neighbourhood."|t('yarn') }}
+            {% if graph.skippedKinds %}
+                <br>
+                {{ "Not scanned: {sources}. Switch them on under Settings."|t('yarn', { sources: graph.skippedKinds|join(', ') }) }}
+            {% endif %}
+        </p>
+    </div>
+{% endblock %}

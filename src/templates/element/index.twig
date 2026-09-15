@@ -1,0 +1,130 @@
+{% extends "_layouts/cp" %}
+
+{% set title = node.label %}
+{% set selectedSubnavItem = 'browse' %}
+{% do view.registerAssetBundle("justinholtweb\\yarn\\web\\assets\\cp\\CpAsset") %}
+
+{% set crumbs = [
+    { label: "Yarn"|t('yarn'), url: cpUrl('yarn', { site: site.handle }) },
+    { label: "Browse"|t('yarn'), url: cpUrl('yarn/browse', { site: site.handle }) },
+] %}
+
+{% block actionButton %}
+    <a class="btn" href="{{ node.cpEditUrl() }}">{{ "Edit element"|t('yarn') }}</a>
+{% endblock %}
+
+{% macro relations(groups, empty, site) %}
+    {% if groups is empty %}
+        <div class="yarn-empty">{{ empty }}</div>
+    {% else %}
+        {% for group in groups %}
+            <div class="yarn-group">
+                <div class="yarn-group-head">
+                    <h3>{{ group.label }}</h3>
+                    <span class="yarn-relation-kind">
+                        {{ "{count} via {kind}"|t('yarn', { count: group.edges|length, kind: group.kindLabel|lower }) }}
+                    </span>
+                </div>
+                <table class="data fullwidth yarn-table">
+                    <tbody>
+                        {% for row in group.edges %}
+                            <tr>
+                                <td>{% include 'yarn/_partials/node' with { node: row.node, site: site } only %}</td>
+                                <td style="width: 220px;" class="yarn-via">
+                                    {% if row.edge.via %}{{ "via {field}"|t('yarn', { field: row.edge.via }) }}{% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endmacro %}
+
+{% block content %}
+    {% import _self as parts %}
+
+    <div class="yarn">
+        {% include 'yarn/_partials/toolbar' %}
+
+        <div class="yarn-toolbar" style="margin-bottom: 10px;">
+            {% include 'yarn/_partials/node' with { node: node, link: false } %}
+            <span class="light">#{{ node.id }}{% if node.uri %} · /{{ node.uri }}{% endif %}</span>
+        </div>
+
+        <div class="yarn-stats">
+            <div class="yarn-stat">
+                <div class="yarn-stat-value">{{ outCount }}</div>
+                <div class="yarn-stat-label">{{ "Points at"|t('yarn') }}</div>
+            </div>
+            <div class="yarn-stat">
+                <div class="yarn-stat-value">{{ inCount }}</div>
+                <div class="yarn-stat-label">{{ "Pointed at by"|t('yarn') }}</div>
+            </div>
+            <div class="yarn-stat">
+                <div class="yarn-stat-value">{{ impact.indirect|length }}</div>
+                <div class="yarn-stat-label">{{ "Knock-on if deleted"|t('yarn') }}</div>
+            </div>
+        </div>
+
+        {% if inCount > 0 %}
+            <div class="readable" style="margin-bottom: 18px;">
+                <p class="yarn-panel-warning">
+                    {{ "Deleting this would leave {count} element(s) pointing at nothing."|t('yarn', { count: impact.direct|length }) }}
+                </p>
+            </div>
+        {% endif %}
+
+        <div class="yarn-map" data-yarn-map style="min-height: 420px; margin-bottom: 26px;">
+            <script type="application/json" data-yarn-config>{{ {
+                site: site.handle,
+                depth: depth,
+                focus: node.id,
+                elementUrlTemplate: cpUrl('yarn/element/__ID__', { site: site.handle }),
+            }|json_encode|raw }}</script>
+
+            <svg role="img" aria-label="{{ "Relations around this element"|t('yarn') }}" style="height: 420px;"></svg>
+
+            <div class="yarn-map-overlay">
+                <div class="yarn-map-status" data-yarn-status></div>
+            </div>
+
+            <div class="yarn-detail" data-yarn-detail hidden></div>
+
+            <div class="yarn-map-controls">
+                <button type="button" class="btn small" data-yarn-fit>{{ "Fit"|t('yarn') }}</button>
+                <button type="button" class="btn small" data-yarn-shake>{{ "Re-settle"|t('yarn') }}</button>
+            </div>
+        </div>
+
+        <h2>{{ "Points at"|t('yarn') }}</h2>
+        {{ parts.relations(outgoing, "This element relates to nothing."|t('yarn'), site) }}
+
+        <h2>{{ "Pointed at by"|t('yarn') }}</h2>
+        {{ parts.relations(incoming, "Nothing on the site points at this."|t('yarn'), site) }}
+
+        {% if impact.indirect is not empty %}
+            <h2>{{ "Further downstream"|t('yarn') }}</h2>
+            <p class="light">
+                {{ "Elements that reach this one through something else. They would not break immediately, but the chain to them would."|t('yarn') }}
+            </p>
+            <table class="data fullwidth yarn-table">
+                <thead>
+                    <tr>
+                        <th>{{ "Element"|t('yarn') }}</th>
+                        <th style="width: 100px;">{{ "Hops"|t('yarn') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in impact.indirect|slice(0, 200) %}
+                        <tr>
+                            <td>{% include 'yarn/_partials/node' with { node: row.node } %}</td>
+                            <td>{{ row.hops }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+{% endblock %}

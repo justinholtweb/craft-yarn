@@ -1,0 +1,23 @@
+{# The five numbers that describe a site's relations. #}
+<div class="yarn-stats">
+    <div class="yarn-stat">
+        <div class="yarn-stat-value">{{ stats.nodes|number }}</div>
+        <div class="yarn-stat-label">{{ "Elements"|t('yarn') }}</div>
+    </div>
+    <div class="yarn-stat">
+        <div class="yarn-stat-value">{{ stats.edges|number }}</div>
+        <div class="yarn-stat-label">{{ "Relations"|t('yarn') }}</div>
+    </div>
+    <div class="yarn-stat">
+        <div class="yarn-stat-value">{{ stats.connected|number }}</div>
+        <div class="yarn-stat-label">{{ "Connected"|t('yarn') }}</div>
+    </div>
+    <div class="yarn-stat">
+        <div class="yarn-stat-value">{{ stats.unreferenced|number }}</div>
+        <div class="yarn-stat-label">{{ "Nothing points at"|t('yarn') }}</div>
+    </div>
+    <div class="yarn-stat">
+        <div class="yarn-stat-value">{{ stats.isolated|number }}</div>
+        <div class="yarn-stat-label">{{ "No relations at all"|t('yarn') }}</div>
+    </div>
+</div>

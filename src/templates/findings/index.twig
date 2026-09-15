@@ -1,0 +1,109 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+
+{% set title = "Findings"|t('yarn') %}
+{% set selectedSubnavItem = 'findings' %}
+{% do view.registerAssetBundle("justinholtweb\\yarn\\web\\assets\\cp\\CpAsset") %}
+
+{% block content %}
+    <div class="yarn">
+        {% include 'yarn/_partials/toolbar' %}
+
+        <div class="yarn-stats">
+            <div class="yarn-stat">
+                <div class="yarn-stat-value" style="color: var(--yarn-deleted);">{{ severities.error|number }}</div>
+                <div class="yarn-stat-label">{{ "Errors"|t('yarn') }}</div>
+            </div>
+            <div class="yarn-stat">
+                <div class="yarn-stat-value" style="color: var(--yarn-expired);">{{ severities.warning|number }}</div>
+                <div class="yarn-stat-label">{{ "Warnings"|t('yarn') }}</div>
+            </div>
+            <div class="yarn-stat">
+                <div class="yarn-stat-value">{{ severities.notice|number }}</div>
+                <div class="yarn-stat-label">{{ "Notices"|t('yarn') }}</div>
+            </div>
+        </div>
+
+        <form method="get" class="yarn-toolbar">
+            <input type="hidden" name="site" value="{{ site.handle }}">
+
+            <div>
+                <label for="check">{{ "Check"|t('yarn') }}</label>
+                <select id="check" name="check">
+                    <option value="">{{ "All checks"|t('yarn') }}</option>
+                    {% for id, name in names %}
+                        <option value="{{ id }}" {{ id == check ? 'selected' }}>{{ name }} ({{ tally[id] ?? 0 }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label for="severity">{{ "Severity"|t('yarn') }}</label>
+                {{ forms.select({
+                    id: 'severity',
+                    name: 'severity',
+                    value: severity,
+                    options: [
+                        { label: "Any"|t('yarn'), value: '' },
+                        { label: "Error"|t('yarn'), value: 'error' },
+                        { label: "Warning"|t('yarn'), value: 'warning' },
+                        { label: "Notice"|t('yarn'), value: 'notice' },
+                    ],
+                }) }}
+            </div>
+
+            <div>
+                <label>&nbsp;</label>
+                <button type="submit" class="btn submit">{{ "Filter"|t('yarn') }}</button>
+            </div>
+        </form>
+
+        {% if findings is empty %}
+            <div class="yarn-empty">
+                {{ total == 0
+                    ? "Nothing to report. Every relation on this site lands somewhere that renders."|t('yarn')
+                    : "No findings match that filter."|t('yarn') }}
+            </div>
+        {% else %}
+            <table class="data fullwidth yarn-table">
+                <thead>
+                    <tr>
+                        <th style="width: 90px;">{{ "Severity"|t('yarn') }}</th>
+                        <th>{{ "Finding"|t('yarn') }}</th>
+                        <th style="width: 260px;">{{ "Element"|t('yarn') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for finding in findings %}
+                        <tr>
+                            <td>
+                                <span class="yarn-health" data-health="{{ finding.severity == 'error' ? 'deleted' : (finding.severity == 'warning' ? 'expired' : 'disabled') }}">
+                                    {{ finding.severity }}
+                                </span>
+                            </td>
+                            <td>
+                                <div>{{ finding.title }}</div>
+                                {% if finding.detail %}
+                                    <div class="yarn-via">{{ finding.detail }}</div>
+                                {% endif %}
+                                <div class="yarn-relation-kind">{{ names[finding.check] ?? finding.check }}</div>
+                            </td>
+                            <td>
+                                {% if finding.subject %}
+                                    {% include 'yarn/_partials/node' with { node: finding.subject } %}
+                                {% endif %}
+                                {% if finding.object %}
+                                    <div class="yarn-via">
+                                        → {% include 'yarn/_partials/node' with { node: finding.object, showGroup: false } %}
+                                    </div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            {% include 'yarn/_partials/pagination' %}
+        {% endif %}
+    </div>
+{% endblock %}
