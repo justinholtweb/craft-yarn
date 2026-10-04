@@ -1,6 +1,6 @@
 # Release Notes for Yarn
 
-## 5.0.0
+## 5.0.0 - 2026-10-04
 
 Initial release.
 

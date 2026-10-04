@@ -1,3 +1,10 @@
+---
+title: Configuration
+slug: configuration
+order: 30
+summary: What counts as a relation, performance limits and caching, reporting, and per-environment overrides.
+---
+
 # Configuration
 
 Settings live at **Yarn → Settings**, and can be overridden per environment with

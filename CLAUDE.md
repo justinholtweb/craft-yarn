@@ -79,6 +79,16 @@ every asset ever swapped out still reads as in use — the single most misleadin
 report can say, because it is the one that stops you cleaning up. Every query joins `elements` and
 filters `draftId`/`revisionId`/`archived`.
 
+### Permissions are applied after the cache, never before
+
+The cached graph is the whole site and is shared by every user. `BaseController::graph()` passes it
+through `services\Graph::forUser()`, which swaps any node the user can't view (by section, volume,
+category group, `viewUsers`, editable global sets) for a copy labelled "Restricted element #id". The
+node keeps its edges, so a restricted page still counts as a usage. Hiding it would make that
+page's assets read as unused. Tags, nested entries and `type:*` nodes aren't masked: tags have no
+view permission, and checking `type:*` means loading every element of that type. Admins skip all of
+this.
+
 ### Caching
 
 Keyed on site + `Settings::graphFingerprint()` + a counter bumped by `Graph::invalidate()`, which
@@ -139,9 +149,11 @@ No local PHP on this Mac. PHP runs inside the plugin-testing container.
 
 ```sh
 cd ~/Sites/plugin-testing
-ddev exec php /var/www/craft-yarn/tests/integration/checks.php     # 77 checks
+ddev exec php /var/www/craft-yarn/tests/integration/checks.php     # 82 checks
 ddev exec bash -c 'find /var/www/craft-yarn/src -name "*.php" -print0 | xargs -0 -n1 php -l'
-ddev exec -w /var/www/craft-yarn vendor/bin/phpunit                # 40 unit tests
+ddev exec -d /var/www/craft-yarn vendor/bin/phpunit                # 42 unit tests
+ddev exec -d /var/www/craft-yarn vendor/bin/phpstan analyse --memory-limit=1G   # level 5
+ddev exec -d /var/www/craft-yarn vendor/bin/ecs check             # craftcms/ecs CRAFT_CMS_4 set
 ```
 
 The unit suite is pure PHP — graph algorithms, export escaping, the reference tag grammar. The

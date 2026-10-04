@@ -1,3 +1,10 @@
+---
+title: Installation
+slug: installation
+order: 10
+summary: Requirements, installing, the permissions Yarn adds, the first run and uninstalling.
+---
+
 # Installation
 
 ## Requirements
@@ -30,6 +37,13 @@ Settings are admin-only, and respect `allowAdminChanges`.
 
 Yarn only ever shows sites the user can edit. A user with access to one site’s content cannot
 read another site’s graph through it.
+
+Inside a site, Yarn respects Craft’s own view permissions. An entry in a section the user can’t
+view, an asset in a volume they can’t view, a category group, a global set they can’t edit, or a
+user when they lack **View users** appears as “Restricted element #id”. It keeps its relations,
+so counts stay accurate and a restricted page still counts as using an image, but its title and
+URL are hidden. Admins see everything. Element types from other plugins are shown as they are,
+because checking each one would mean loading every element of that type.
 
 ## First run
 

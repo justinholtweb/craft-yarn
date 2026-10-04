@@ -1078,6 +1078,63 @@ check('the CSV has a row per edge', function() use ($site) {
 
 // ============================================================================ cache
 
+section('Permissions');
+
+$restrictedGraph = function() use ($section): GraphModel {
+    $graph = new GraphModel(1);
+    $sectionKey = 'section:' . ($section->id ?? 1);
+    $graph->addNode(node(1, Node::KIND_ENTRY, ['label' => 'Salary review', 'groupKey' => $sectionKey, 'uri' => 'hr/salary']));
+    $graph->addNode(node(2, Node::KIND_USER, ['label' => 'someone@example.com', 'groupKey' => 'users']));
+    $graph->addNode(node(3, Node::KIND_TAG, ['label' => 'A tag', 'groupKey' => 'tagGroup:1']));
+    $graph->addNode(node(4, Node::KIND_OTHER, ['label' => 'An address', 'groupKey' => 'type:craft\\commerce\\elements\\Address']));
+    $graph->addEdge(new Edge(from: 1, to: 2, label: 'Author', fieldId: 1));
+    $graph->tally();
+
+    return $graph;
+};
+
+// An id no user has: `can()` finds no permissions for it, which is the point.
+$nobody = new craft\elements\User(['id' => 2147483000, 'admin' => false]);
+
+check('an admin sees the graph untouched', function() use ($plugin, $restrictedGraph) {
+    $graph = $restrictedGraph();
+
+    return $plugin->graph->forUser($graph, new craft\elements\User(['id' => 2147483000, 'admin' => true])) === $graph
+        ?: 'an admin got a copy';
+});
+
+check('a user without view permission sees ids, not titles', function() use ($plugin, $restrictedGraph, $nobody) {
+    $masked = $plugin->graph->forUser($restrictedGraph(), $nobody);
+    $entry = $masked->node(1);
+    $user = $masked->node(2);
+
+    if (str_contains($entry->label, 'Salary') || $entry->uri !== null || $entry->groupKey !== 'restricted') {
+        return 'the entry leaked: ' . $entry->label;
+    }
+
+    return !str_contains($user->label, '@') ?: 'a user email leaked without viewUsers';
+});
+
+check('masking keeps the edges, so counts stay honest', function() use ($plugin, $restrictedGraph, $nobody) {
+    $masked = $plugin->graph->forUser($restrictedGraph(), $nobody);
+
+    return count($masked->edges) === 1 && $masked->node(2)->inCount === 1 ?: 'edges were dropped';
+});
+
+check('tags and unknown element types are left alone', function() use ($plugin, $restrictedGraph, $nobody) {
+    $masked = $plugin->graph->forUser($restrictedGraph(), $nobody);
+
+    return $masked->node(3)->label === 'A tag' && $masked->node(4)->label === 'An address'
+        ?: 'masked something with no permission to check';
+});
+
+check('masking never touches the shared, cacheable graph', function() use ($plugin, $restrictedGraph, $nobody) {
+    $graph = $restrictedGraph();
+    $plugin->graph->forUser($graph, $nobody);
+
+    return $graph->node(1)->label === 'Salary review' ?: 'the original graph was rewritten';
+});
+
 section('Caching');
 
 check('a cached graph is handed back rather than rebuilt', function() use ($site) {

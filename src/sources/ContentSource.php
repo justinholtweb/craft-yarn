@@ -8,6 +8,7 @@ use craft\db\Table;
 use craft\helpers\StringHelper;
 use justinholtweb\yarn\models\Edge;
 use justinholtweb\yarn\models\Settings;
+use justinholtweb\yarn\Plugin;
 use Throwable;
 
 /**
@@ -242,6 +243,20 @@ class ContentSource extends BaseEdgeSource
     }
 
     /**
+     * PCRE gives up on a pathological value — a very long run of `{a:x:` with nothing closing it —
+     * and `preg_match_all()` returns false. Read as "no matches", everything that field points at
+     * could show up as unused, and be deleted on the strength of it. Say so instead.
+     */
+    private function regexFailed(int $elementId): void
+    {
+        Craft::warning(sprintf(
+            'Could not scan the content of element #%d for references (%s). Anything it points at may be reported as unused.',
+            $elementId,
+            preg_last_error_msg(),
+        ), Plugin::LOG_CATEGORY);
+    }
+
+    /**
      * @return array<int, array{from: int, to: int|null, uid: string|null, kind: string, label: string, raw: string}>
      */
     private function matchRefTags(int $elementId, string $value): array
@@ -250,7 +265,14 @@ class ContentSource extends BaseEdgeSource
             return [];
         }
 
-        if (!preg_match_all(self::REF_TAG_PATTERN, $value, $matches, PREG_SET_ORDER)) {
+        $found = preg_match_all(self::REF_TAG_PATTERN, $value, $matches, PREG_SET_ORDER);
+
+        if ($found === false) {
+            $this->regexFailed($elementId);
+            return [];
+        }
+
+        if ($found === 0) {
             return [];
         }
 
@@ -298,7 +320,14 @@ class ContentSource extends BaseEdgeSource
             return [];
         }
 
-        if (!preg_match_all(self::URL_PATTERN, $value, $matches, PREG_SET_ORDER)) {
+        $found = preg_match_all(self::URL_PATTERN, $value, $matches, PREG_SET_ORDER);
+
+        if ($found === false) {
+            $this->regexFailed($elementId);
+            return [];
+        }
+
+        if ($found === 0) {
             return [];
         }
 

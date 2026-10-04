@@ -1,3 +1,10 @@
+---
+title: Troubleshooting
+slug: troubleshooting
+order: 60
+summary: An empty map, stale graphs, noisy findings, memory limits, a missing panel and why deletes aren’t blocked.
+---
+
 # Troubleshooting
 
 ## The map is empty, or says “Loading…” forever

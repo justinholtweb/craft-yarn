@@ -91,11 +91,11 @@ class Export extends Component
                 continue;
             }
 
-            fputcsv($handle, [
+            fputcsv($handle, array_map([$this, 'csvCell'], [
                 $from->id, $from->label, $from->kind, $from->group, $from->health(),
                 $edge->kind, $edge->label, $edge->via ?? '',
                 $to->id, $to->label, $to->kind, $to->group, $to->health(),
-            ]);
+            ]));
         }
 
         rewind($handle);
@@ -163,9 +163,22 @@ class Export extends Component
         return implode("\n", $lines) . "\n";
     }
 
+    /**
+     * A title is whatever an author typed, and a spreadsheet runs a cell that starts with `=` as a
+     * formula. Prefixing a quote is the escape Excel, Numbers and Sheets all honour.
+     */
+    private function csvCell(int|string $value): int|string
+    {
+        if (is_string($value) && $value !== '' && str_contains("=+-@\t\r", $value[0])) {
+            return "'" . $value;
+        }
+
+        return $value;
+    }
+
     private function quote(string $value): string
     {
-        return '"' . str_replace(['\\', '"', "\n"], ['\\\\', '\\"', ' '], $value) . '"';
+        return '"' . str_replace(['\\', '"', "\r\n", "\r", "\n"], ['\\\\', '\\"', ' ', ' ', ' '], $value) . '"';
     }
 
     /**
@@ -174,6 +187,6 @@ class Export extends Component
      */
     private function mermaidLabel(string $value): string
     {
-        return trim(str_replace(['"', '[', ']', '(', ')', '{', '}', '|', '<', '>', "\n"], ['\'', '', '', '', '', '', '', '/', '', '', ' '], $value));
+        return trim(str_replace(['"', '[', ']', '(', ')', '{', '}', '|', '<', '>', "\r", "\n"], ['\'', '', '', '', '', '', '', '/', '', '', ' ', ' '], $value));
     }
 }

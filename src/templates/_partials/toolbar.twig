@@ -26,11 +26,12 @@
                 }) }}
             {% endif %}
         </div>
-        {# Query-only href: it keeps whatever path and filters the reader is already on, without
-           this partial having to know which of the five screens included it. #}
-        <a class="btn" href="?{{ craft.app.request.queryParams|merge({ rebuild: 1 })|url_encode }}">
-            {{ "Rebuild"|t('yarn') }}
-        </a>
+        <form method="post" accept-charset="UTF-8" class="yarn-toolbar-rebuild">
+            {{ csrfInput() }}
+            {{ actionInput('yarn/map/rebuild') }}
+            {{ redirectInput(craft.app.request.url) }}
+            <button type="submit" class="btn">{{ "Rebuild"|t('yarn') }}</button>
+        </form>
         {% if currentUser.can('yarn:export') %}
             <a class="btn" href="{{ actionUrl('yarn/export', { site: site.handle, format: 'csv' }) }}">{{ "CSV"|t('yarn') }}</a>
             <a class="btn" href="{{ actionUrl('yarn/export', { site: site.handle, format: 'json' }) }}">{{ "JSON"|t('yarn') }}</a>

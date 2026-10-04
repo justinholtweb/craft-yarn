@@ -20,6 +20,7 @@ abstract class BaseController extends Controller
             return false;
         }
 
+        $this->requireCpRequest();
         $this->requirePermission(Plugin::PERMISSION_VIEW);
 
         return true;
@@ -55,11 +56,15 @@ abstract class BaseController extends Controller
         return $site;
     }
 
+    /**
+     * The site's graph, with everything this user may not view reduced to an id.
+     */
     protected function graph(?Site $site = null): GraphModel
     {
         $site ??= $this->site();
+        $graphs = Plugin::getInstance()->graph;
 
-        return Plugin::getInstance()->graph->get($site->id, !$this->request->getParam('rebuild'));
+        return $graphs->forUser($graphs->get($site->id), Craft::$app->getUser()->getIdentity());
     }
 
     /**

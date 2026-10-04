@@ -35,7 +35,7 @@ class ExportController extends BaseController
         $format = (string)$this->format;
 
         if (!in_array($format, Export::FORMATS, true)) {
-            $this->stderr("Unknown format “$format”. One of: " . implode(', ', Export::FORMATS) . "\n", Console::FG_RED);
+            $this->stderr("Unknown format “{$format}”. One of: " . implode(', ', Export::FORMATS) . "\n", Console::FG_RED);
 
             return ExitCode::USAGE;
         }

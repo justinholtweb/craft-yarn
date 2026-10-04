@@ -5,6 +5,7 @@ namespace justinholtweb\yarn;
 use Craft;
 use craft\base\Element;
 use craft\base\Plugin as BasePlugin;
+use craft\elements\User;
 use craft\events\DefineHtmlEvent;
 use craft\events\ElementEvent;
 use craft\events\RegisterUrlRulesEvent;
@@ -228,11 +229,13 @@ class Plugin extends BasePlugin
                     return;
                 }
 
+                // A user's string form is often their email address, which has no business in a
+                // log file. Their id identifies them as well.
                 Craft::info(sprintf(
-                    'Deleting %s #%d (%s) — still used by %d element(s): %s',
+                    'Deleting %s #%d%s — still used by %d element(s): %s',
                     $kind,
                     $element->id,
-                    (string)$element,
+                    $element instanceof User ? '' : ' (' . $element . ')',
                     count($usages),
                     implode(', ', array_map(fn(array $u) => '#' . $u['id'], $usages)),
                 ), self::LOG_CATEGORY);

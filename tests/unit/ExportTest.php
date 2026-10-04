@@ -58,6 +58,36 @@ class ExportTest extends TestCase
         self::assertSame('Hero image', $parsed[6]);
     }
 
+    public function testCsvDefusesCellsASpreadsheetWouldRunAsFormulas(): void
+    {
+        $graph = new Graph(1);
+        $graph->addNode(new Node(id: 1, type: 'craft\\elements\\Entry', kind: Node::KIND_ENTRY, label: '=HYPERLINK("https://evil.test","Click")'));
+        $graph->addNode(new Node(id: 2, type: 'craft\\elements\\Entry', kind: Node::KIND_ENTRY, label: '@SUM(A1)'));
+        $graph->addEdge(new Edge(from: 1, to: 2, label: '-2+3', fieldId: 9));
+        $graph->tally();
+
+        $parsed = str_getcsv(explode("\n", trim((new Export())->csv($graph)))[1]);
+
+        self::assertSame('1', $parsed[0], 'ids are numbers, not text to defuse');
+        self::assertSame('\'=HYPERLINK("https://evil.test","Click")', $parsed[1]);
+        self::assertSame("'-2+3", $parsed[6]);
+        self::assertSame("'@SUM(A1)", $parsed[9]);
+    }
+
+    public function testCarriageReturnsDoNotBreakALine(): void
+    {
+        $graph = new Graph(1);
+        $graph->addNode(new Node(id: 1, type: 'craft\\elements\\Entry', kind: Node::KIND_ENTRY, label: "Two\r\nlines"));
+        $graph->addNode(new Node(id: 2, type: 'craft\\elements\\Entry', kind: Node::KIND_ENTRY, label: "Old\rMac"));
+        $graph->addEdge(new Edge(from: 1, to: 2, label: 'Link', fieldId: 9));
+        $graph->tally();
+
+        $export = new Export();
+
+        self::assertStringNotContainsString("\r", $export->dot($graph));
+        self::assertStringNotContainsString("\r", $export->mermaid($graph));
+    }
+
     public function testDotEscapesQuotes(): void
     {
         $dot = (new Export())->dot($this->graph());

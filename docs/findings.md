@@ -1,3 +1,10 @@
+---
+title: Findings
+slug: findings
+order: 40
+summary: The eight checks Yarn runs, what each one means and what to do about it.
+---
+
 # Findings
 
 Eight checks. Each says what is wrong **and** what to do about it, because “orphaned entry” on its

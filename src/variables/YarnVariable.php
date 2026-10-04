@@ -3,6 +3,7 @@
 namespace justinholtweb\yarn\variables;
 
 use Craft;
+use craft\base\Element;
 use craft\base\ElementInterface;
 use craft\db\Query;
 use craft\db\Table;
@@ -127,7 +128,9 @@ class YarnVariable
             $elements = $query
                 ->id($typeIds)
                 ->siteId($siteId)
-                ->status(null)
+                // Live only on the front end: a "pages that mention this one" footer must not list
+                // a draft-in-all-but-name disabled entry. The control panel wants the lot.
+                ->status(Craft::$app->getRequest()->getIsCpRequest() ? null : Element::STATUS_ENABLED)
                 ->limit(null)
                 ->all();
 

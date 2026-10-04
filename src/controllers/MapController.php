@@ -33,6 +33,21 @@ class MapController extends BaseController
     }
 
     /**
+     * Throws the cached graph away; the page it redirects back to assembles a fresh one.
+     *
+     * POST with a CSRF token rather than `?rebuild=1`: a rebuild costs seconds of database time on
+     * a big site, and a GET link is something any other page can make a signed-in browser fetch.
+     */
+    public function actionRebuild(): Response
+    {
+        $this->requirePostRequest();
+
+        Plugin::getInstance()->graph->invalidate();
+
+        return $this->redirectToPostedUrl();
+    }
+
+    /**
      * The graph as the browser wants it: flat arrays, short keys, no nulls worth sending.
      */
     public function actionData(): Response

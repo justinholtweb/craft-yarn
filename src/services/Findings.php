@@ -303,7 +303,7 @@ class Findings extends Component
 
             foreach ($cycle as $id) {
                 $node = $graph->node($id);
-                $labels[] = $node?->label ?? "#$id";
+                $labels[] = $node->label ?? "#$id";
             }
 
             $first = $graph->node($cycle[0]);

@@ -6,6 +6,7 @@ use Craft;
 use craft\base\Component;
 use craft\db\Query;
 use craft\db\Table;
+use craft\elements\User;
 use justinholtweb\yarn\events\BuildGraphEvent;
 use justinholtweb\yarn\models\BuildContext;
 use justinholtweb\yarn\models\Edge;
@@ -143,6 +144,85 @@ class Graph extends Component
         ), Plugin::LOG_CATEGORY);
 
         return $graph;
+    }
+
+    /**
+     * The graph as one user is allowed to see it.
+     *
+     * The cached graph is the whole site and is shared by everyone, so this runs after the cache,
+     * never before it. A node the user has no permission to view keeps its place and its edges —
+     * so "used four times" still counts all four — but loses its title, group and URI. Hiding it
+     * outright would make a restricted page's assets read as unused, which is the one thing a
+     * relations report must never say wrongly.
+     *
+     * Element types Yarn has no special knowledge of (`type:*`) are left as they are: checking
+     * them means loading every one, and on a Commerce site that is tens of thousands of addresses.
+     */
+    public function forUser(GraphModel $graph, ?User $user): GraphModel
+    {
+        if ($user === null || $user->admin) {
+            return $graph;
+        }
+
+        $allowed = $this->viewableGroupKeys($user);
+        $globals = array_flip(Craft::$app->getGlobals()->getEditableSetIds());
+        $masked = null;
+
+        foreach ($graph->nodes as $id => $node) {
+            $key = $node->groupKey;
+
+            $visible = match (true) {
+                $node->kind === Node::KIND_GLOBAL => isset($globals[$id]),
+                str_starts_with($key, 'type:'), str_starts_with($key, 'tagGroup:'), $key === 'section:nested' => true,
+                default => isset($allowed[$key]),
+            };
+
+            if ($visible) {
+                continue;
+            }
+
+            $masked ??= clone $graph;
+            $copy = clone $node;
+            $copy->label = Craft::t('yarn', 'Restricted element #{id}', ['id' => $id]);
+            $copy->group = Craft::t('yarn', 'Restricted');
+            $copy->groupKey = 'restricted';
+            $copy->uri = null;
+            $masked->nodes[$id] = $copy;
+        }
+
+        return $masked ?? $graph;
+    }
+
+    /**
+     * @return array<string, true>
+     */
+    private function viewableGroupKeys(User $user): array
+    {
+        $keys = [];
+
+        foreach (Craft::$app->getEntries()->getAllSections() as $section) {
+            if ($user->can("viewEntries:$section->uid")) {
+                $keys["section:$section->id"] = true;
+            }
+        }
+
+        foreach (Craft::$app->getVolumes()->getAllVolumes() as $volume) {
+            if ($user->can("viewAssets:$volume->uid")) {
+                $keys["volume:$volume->id"] = true;
+            }
+        }
+
+        foreach (Craft::$app->getCategories()->getAllGroups() as $group) {
+            if ($user->can("viewCategories:$group->uid")) {
+                $keys["categoryGroup:$group->id"] = true;
+            }
+        }
+
+        if ($user->can('viewUsers')) {
+            $keys['users'] = true;
+        }
+
+        return $keys;
     }
 
     /**

@@ -1,3 +1,10 @@
+---
+title: FAQ
+slug: faq
+order: 70
+summary: Common questions about what Yarn sees, what it changes and why it won’t stop a delete.
+---
+
 # FAQ
 
 ### Does Yarn add any database tables?

@@ -47,6 +47,32 @@ abstract class BaseController extends Controller
         return $site;
     }
 
+    /**
+     * Titles come from whoever wrote them, and a title holding an escape sequence can repaint the
+     * terminal or plant a link in it. Control characters other than tab and newline are dropped
+     * before Yii adds its own colours.
+     */
+    public function stdout($string)
+    {
+        $args = func_get_args();
+        $args[0] = self::clean((string)$string);
+
+        return parent::stdout(...$args);
+    }
+
+    public function stderr($string)
+    {
+        $args = func_get_args();
+        $args[0] = self::clean((string)$string);
+
+        return parent::stderr(...$args);
+    }
+
+    private static function clean(string $value): string
+    {
+        return (string)preg_replace('/[\x00-\x08\x0B-\x1F\x7F]/', '', $value);
+    }
+
     protected function row(string $label, string $value): void
     {
         $this->stdout(str_pad($label, 26));

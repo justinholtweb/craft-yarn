@@ -27,7 +27,7 @@
         }
     ],
     "support": {
-        "docs": "https://craft-yarn.com/docs",
+        "docs": "https://justinholt.com/plugins/craft-yarn/docs",
         "source": "https://github.com/justinholtweb/craft-yarn",
         "issues": "https://github.com/justinholtweb/craft-yarn/issues"
     },
@@ -39,7 +39,8 @@
     "require-dev": {
         "craftcms/ecs": "dev-main",
         "craftcms/phpstan": "dev-main",
-        "phpunit/phpunit": "^10.5"
+        "phpunit/phpunit": "^10.5",
+        "phpstan/phpstan": "^1.12 || ^2.2"
     },
     "autoload": {
         "psr-4": {
@@ -66,7 +67,7 @@
         "handle": "yarn",
         "developer": "Justin Holt",
         "developerUrl": "https://justinholt.com",
-        "documentationUrl": "https://craft-yarn.com/docs",
+        "documentationUrl": "https://justinholt.com/plugins/craft-yarn/docs",
         "changelogUrl": "https://raw.githubusercontent.com/justinholtweb/craft-yarn/main/CHANGELOG.md",
         "class": "justinholtweb\\yarn\\Plugin"
     }

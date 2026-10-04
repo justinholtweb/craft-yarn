@@ -1,3 +1,10 @@
+---
+title: Usage
+slug: usage
+order: 20
+summary: The map, one element’s relations, asset usage, globals, findings, Twig, the console and export.
+---
+
 # Usage
 
 ## The map
@@ -71,7 +78,9 @@ footer global appears on every page on the site, and nothing in Craft says so.
 Each takes an optional `siteId` as its last argument.
 
 `usedBy()` and `uses()` return real elements, fetched in one query per element type, and are cheap
-enough for a front-end page:
+enough for a front-end page. On the front end they return enabled elements only; in the control
+panel they return disabled ones too. `usageCount()` and `isUsed()` count every relation either way,
+because "is anything still using this?" includes things that are switched off:
 
 ```twig
 {% set mentions = craft.yarn.usedBy(entry) %}

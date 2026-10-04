@@ -54,9 +54,9 @@ class PathController extends BaseController
             $fromNode = $graph->node($current);
             $toNode = $graph->node($next);
 
-            $this->stdout('  ' . ($fromNode?->label ?? "#$current"), Console::FG_CYAN);
+            $this->stdout('  ' . ($fromNode->label ?? "#$current"), Console::FG_CYAN);
             $this->stdout('  —' . ($edge->label !== '' ? " {$edge->label} " : ' ') . '→  ');
-            $this->stdout(($toNode?->label ?? "#$next") . "\n", Console::FG_CYAN);
+            $this->stdout(($toNode->label ?? "#$next") . "\n", Console::FG_CYAN);
 
             $current = $next;
         }

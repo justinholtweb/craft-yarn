@@ -30,7 +30,9 @@ class SettingsController extends BaseController
             return false;
         }
 
-        $this->requireAdmin();
+        // `false`: with admin changes off this screen still opens, read-only, rather than 403ing.
+        // Saving is what needs them, and `actionSave()` asks for that itself.
+        $this->requireAdmin(false);
 
         return true;
     }
@@ -50,6 +52,7 @@ class SettingsController extends BaseController
     public function actionSave(): Response
     {
         $this->requirePostRequest();
+        $this->requireAdmin();
 
         $plugin = Plugin::getInstance();
         $posted = $this->request->getBodyParam('settings', []);

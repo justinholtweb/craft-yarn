@@ -1,3 +1,10 @@
+---
+title: Extending Yarn
+slug: extending
+order: 50
+summary: Contributing your own relations, adjusting the graph and adding findings from another plugin.
+---
+
 # Extending Yarn
 
 Three events, and one interface.
