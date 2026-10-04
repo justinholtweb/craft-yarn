@@ -175,7 +175,9 @@ class ContentSource extends BaseEdgeSource
 
             [$from, $ownerField] = $this->context->rollUp($hit['from']);
 
-            if ($from === $target) {
+            // A block linking to the page it sits on is roll-up's doing, not the author's: "back to
+            // top" is not a self-reference. A page whose own content references itself is one.
+            if ($from === $target && $from !== $hit['from']) {
                 continue;
             }
 

@@ -680,6 +680,20 @@ if ($section === null || !$fieldId) {
         return 'no reference edge';
     });
 
+    check('a page whose own content references itself is a self-reference', function() use ($source, $site) {
+        // The skip for `from === to` exists for roll-up — a Matrix block linking to its own page.
+        // Applied to everything, it threw away the one case the self-reference check is for.
+        writeContent($source->id, $site->id, ['abc123' => '<a href="{entry:' . $source->id . ':url}">this page</a>']);
+
+        foreach (Plugin::getInstance()->findings->run(freshGraph(), [Findings::CHECK_SELF]) as $finding) {
+            if ($finding->subject?->id === $source->id) {
+                return true;
+            }
+        }
+
+        return 'not reported';
+    });
+
     check('a reference tag to an element that does not exist is an error', function() use ($source, $site) {
         writeContent($source->id, $site->id, ['abc123' => '{entry:2147483600:url}']);
 
