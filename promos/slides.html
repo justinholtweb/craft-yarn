@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<!-- handmade: hand-tuned deck -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Yarn — Plugin Store promos</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --ink: #0d0c1c;
+    --ink-light: #141230;
+    --ink-lighter: #24214a;
+    --accent: #4F46B8;
+    --accent-light: #8A82F2;
+    --pale: #D6D2FF;
+    --green: #4ade80;
+    --amber: #f5c26b;
+    --red: #ff8f7e;
+    --off-white: #f3f2fa;
+  }
+
+  html { background: #000; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    color: var(--off-white);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- slide shell ---------------------------------------------------- */
+  .slide {
+    position: relative;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse at 85% 15%, rgba(79, 70, 184, 0.42) 0%, transparent 40%),
+      radial-gradient(ellipse at 65% 5%,  rgba(138, 130, 242, 0.14) 0%, transparent 35%),
+      radial-gradient(ellipse at 15% 85%, rgba(214, 210, 255, 0.06) 0%, transparent 40%),
+      radial-gradient(ellipse at 35% 95%, rgba(79, 70, 184, 0.14) 0%, transparent 35%),
+      linear-gradient(135deg, #0d0c1c 0%, #141230 30%, #1b1840 60%, #0d0c1c 100%);
+  }
+
+  /* Oversized watermark, echoing the app icon.
+
+     Yarn's mask is the only one in the family drawn as strokes rather than fills: a ring, three
+     wound strands and a loose end, all at stroke-width 1.6 in a 24-unit box. At 1080px that is a
+     72px line — heavier than it sounds, but the figure is mostly empty, so it reads lighter than
+     a filled mark of the same size. 0.020, the family's filled-mark opacity, left a clearly
+     drawn ball of yarn behind every headline; 0.012 still showed the loose end curling out under
+     the copy on the centred slides; 0.008 was still a visible ring behind the cover and the
+     statement once the slide went through the JPEG encode, which lifts the dark ground a
+     little; 0.005 sits under the threshold. 1080px at left -18% puts the
+     left rim off the canvas and leaves the strands and the tail carrying. */
+  .slide::after {
+    content: '';
+    position: absolute;
+    top: -4%;
+    left: -18%;
+    width: 1080px;
+    height: 1080px;
+    background: url('assets/watermark.svg') no-repeat center / contain;
+    opacity: 0.005;
+    pointer-events: none;
+  }
+
+  /* Hairline along the top edge */
+  .slide::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 6px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-light), var(--pale), var(--accent));
+    z-index: 5;
+  }
+
+  .inner {
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    padding: 118px 130px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* ---- type ------------------------------------------------------------ */
+  .eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: rgba(243, 242, 250, 0.62);
+    margin-bottom: 34px;
+  }
+  .eyebrow .rule { width: 58px; height: 3px; border-radius: 2px; background: var(--accent-light); }
+
+  h1, h2 {
+    font-family: 'Jersey 20', sans-serif;
+    font-weight: 400;
+    line-height: 0.9;
+    letter-spacing: 0.005em;
+  }
+
+  /* Starts lighter than --accent: #4F46B8 is the icon's tile colour and sits too close to the
+     ground to carry a headline on its own. */
+  .gradient-text {
+    background: linear-gradient(100deg, #7068E6 0%, #8A82F2 38%, #D6D2FF 68%, #8A82F2 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .lede { font-size: 34px; line-height: 1.5; color: rgba(243, 242, 250, 0.72); }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
+
+  /* ---- cover slide ----------------------------------------------------- */
+  .cover .inner { gap: 90px; }
+  .cover .copy { flex: 1 1 auto; }
+  .cover h1 { font-size: 250px; margin-bottom: 26px; }
+  .cover .tagline {
+    font-family: 'Jersey 20', sans-serif;
+    font-size: 60px;
+    line-height: 1.02;
+    color: var(--off-white);
+    margin-bottom: 40px;
+    max-width: 16ch;
+  }
+  .cover .lede { max-width: 28ch; font-size: 30px; }
+
+  .cover .mark {
+    flex: 0 0 auto;
+    width: 460px;
+    height: 460px;
+    filter: drop-shadow(14px 14px 0 rgba(0, 0, 0, 0.35));
+  }
+  .cover .mark img { width: 100%; height: 100%; display: block; }
+
+  .badges { display: flex; gap: 16px; margin-top: 52px; }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 26px;
+    font-size: 22px;
+    font-weight: 500;
+    color: rgba(243, 242, 250, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 999px;
+  }
+  .badge .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent-light); }
+  .badge.price .dot { background: var(--green); }
+
+  /* ---- the before/after statement -------------------------------------- */
+  .statement .inner { flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+  .statement .eyebrow { justify-content: center; }
+  .swap { display: flex; flex-direction: column; align-items: center; gap: 22px; margin-top: 8px; }
+  .swap .caption {
+    font-size: 26px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(243, 242, 250, 0.42);
+  }
+  .swap .before {
+    font-size: 40px;
+    white-space: nowrap;
+    color: rgba(243, 242, 250, 0.34);
+    letter-spacing: 0.01em;
+  }
+  .swap .arrow {
+    width: 4px; height: 62px; border-radius: 2px;
+    background: linear-gradient(180deg, rgba(138,130,242,0.15), var(--accent-light));
+    position: relative;
+  }
+  .swap .arrow::after {
+    content: '';
+    position: absolute;
+    left: 50%; bottom: -4px;
+    width: 18px; height: 18px;
+    transform: translateX(-50%) rotate(45deg);
+    border-right: 4px solid var(--accent-light);
+    border-bottom: 4px solid var(--accent-light);
+    border-radius: 2px;
+  }
+  /* The answer is a question here, so it is set in the display face rather than in mono —
+     it is something a person says, not something they type. */
+  .swap .after { font-family: 'Jersey 20', sans-serif; font-size: 112px; line-height: 1; letter-spacing: 0.01em; white-space: nowrap; }
+  .statement .lede { margin-top: 40px; max-width: 44ch; font-size: 32px; }
+
+  /* ---- feature slides -------------------------------------------------- */
+  .feature .inner { align-items: center; }
+  .feature .copy { width: 780px; flex: 0 0 780px; }
+  .feature h2 { font-size: 108px; margin-bottom: 30px; }
+  .feature .lede { max-width: 21ch; }
+
+  .points { list-style: none; margin-top: 44px; display: flex; flex-direction: column; gap: 18px; }
+  .points li {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    font-size: 25px;
+    line-height: 1.4;
+    color: rgba(243, 242, 250, 0.6);
+  }
+  .points li .tick {
+    flex: 0 0 auto; margin-top: 9px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent-light);
+  }
+  /* The li is a flex container, so an inline <span class="mono"> left loose in the text becomes
+     a sibling flex item and picks up the 16px gap on both sides. Every point keeps its text in
+     one .t. Keep each point to one line — about 55 characters at 25px in a 780px column. A
+     second line runs at the panel, which starts at left: 900px, and the two simply overlap. */
+  .points li .t { flex: 1 1 auto; }
+
+  /* Right-hand panel shared by the both-ends, findings and extending slides */
+  .panel {
+    position: absolute;
+    top: 50%;
+    left: 900px;
+    right: 130px;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  /* ---- both ends of one element ---------------------------------------- */
+  .parts { display: flex; flex-direction: column; gap: 20px; }
+  .part {
+    padding: 28px 34px;
+    border-radius: 16px;
+    background: rgba(36, 33, 74, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .part .label {
+    display: flex; justify-content: space-between;
+    font-size: 19px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--accent-light); margin-bottom: 14px;
+  }
+  .part .label b { font-weight: 600; color: var(--pale); letter-spacing: 0.04em; }
+  .part .said { font-size: 28px; color: var(--off-white); margin-bottom: 10px; white-space: nowrap; }
+  .part .said i { color: var(--accent-light); font-style: normal; }
+  .part .also { font-size: 21px; line-height: 1.45; color: rgba(243, 242, 250, 0.42); }
+  .part.hot { border-color: rgba(245, 194, 107, 0.45); background: rgba(245, 194, 107, 0.08); }
+  .part.hot .label { color: var(--amber); }
+
+  /* ---- findings rows ---------------------------------------------------- */
+  .finds { display: flex; flex-direction: column; gap: 12px; }
+  .find {
+    display: flex; align-items: center; gap: 26px;
+    padding: 19px 30px; border-radius: 14px;
+    background: rgba(36, 33, 74, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .find .what { flex: 1 1 auto; font-size: 24px; color: rgba(243, 242, 250, 0.78); }
+  .find .sev {
+    flex: 0 0 auto; padding: 5px 14px; border-radius: 999px;
+    font-size: 17px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: rgba(243, 242, 250, 0.55); border: 1px solid rgba(243, 242, 250, 0.22);
+  }
+  /* Emphasis is carried by colour, never by a border style — a dashed 1px border does not
+     survive the downsample from 3840 to 1920. */
+  .find.error .sev { color: var(--red); border-color: rgba(255, 143, 126, 0.6); }
+  .find.warning .sev { color: var(--amber); border-color: rgba(245, 194, 107, 0.55); }
+  .find.error { border-color: rgba(255, 143, 126, 0.30); }
+
+  /* ---- extending: four cards ---------------------------------------------- */
+  .places { display: flex; flex-wrap: wrap; gap: 22px; }
+  .place {
+    flex: 1 1 calc(50% - 11px);
+    padding: 32px 30px; border-radius: 18px;
+    background: rgba(36, 33, 74, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  /* No text-transform: these carry constant and Twig names, and case is the point of them. */
+  .place .chip {
+    display: inline-block; margin-bottom: 18px;
+    padding: 7px 14px; border-radius: 999px;
+    font-size: 17px; letter-spacing: 0.01em;
+    color: var(--pale); background: rgba(79, 70, 184, 0.45);
+  }
+  .place .where { font-size: 27px; font-weight: 600; color: var(--off-white); margin-bottom: 14px; }
+  .place .what { font-size: 21px; line-height: 1.45; color: rgba(243, 242, 250, 0.5); }
+
+  /* ---- terminal --------------------------------------------------------- */
+  .term {
+    position: absolute; top: 50%; left: 900px; right: -110px;
+    transform: translateY(-50%);
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .term .chrome {
+    height: 44px; background: #24214a;
+    background-image:
+      radial-gradient(circle at 26px 22px, #ff5f57 6.5px, transparent 7px),
+      radial-gradient(circle at 52px 22px, #ffbd2e 6.5px, transparent 7px),
+      radial-gradient(circle at 78px 22px, #28ca42 6.5px, transparent 7px);
+  }
+  .term .body {
+    background: #100e22; padding: 40px 44px;
+    font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 22px; line-height: 1.85; white-space: nowrap;
+  }
+  .term .prompt { color: var(--accent-light); }
+  .term .cmd { color: var(--off-white); }
+  .term .out { color: rgba(243, 242, 250, 0.45); }
+  .term .ok { color: var(--green); }
+  .term .warn { color: var(--amber); }
+  .term .err { color: var(--red); }
+  .term .blank { display: block; height: 18px; }
+
+  /* ---- footer lockup --------------------------------------------------- */
+  .footer {
+    position: absolute; left: 130px; bottom: 62px; z-index: 3;
+    display: flex; align-items: center; gap: 18px;
+    font-size: 22px; letter-spacing: 0.06em;
+    color: rgba(243, 242, 250, 0.4);
+  }
+  .footer img { width: 40px; height: 40px; border-radius: 9px; }
+  .footer b { color: rgba(243, 242, 250, 0.72); font-weight: 600; }
+
+  /* Only render the requested slide when screenshotting */
+  body.single .slide { display: none; }
+  body.single .slide.active { display: block; }
+
+  /* ---- control-panel screenshot cards ----------------------------------
+     Self-contained: these cards must drop into any deck in the family, and the decks do not
+     share a class system. Only --accent-light and --off-white are relied on, both of which
+     every deck defines, and both have fallbacks. */
+  .slide.cpcard { display: block; }
+  .cpcard .cpc-inner {
+    position: relative; z-index: 2; height: 100%;
+    padding: 112px 120px; display: flex; align-items: center; gap: 70px;
+  }
+  .cpcard .cpc-copy { width: 640px; flex: 0 0 640px; }
+
+  .cpcard .cpc-eyebrow {
+    display: flex; align-items: center; gap: 20px; margin-bottom: 34px;
+    font-size: 21px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--accent-light, #7aa2c8);
+  }
+  .cpcard .cpc-eyebrow i {
+    display: block; width: 62px; height: 3px;
+    background: var(--accent-light, #7aa2c8); border-radius: 2px;
+  }
+  .cpcard .cpc-h2 {
+    font-family: 'Jersey 20', 'Inter', sans-serif;
+    font-size: 88px; line-height: 0.96; font-weight: 400; letter-spacing: 0.005em;
+    margin: 0 0 28px; color: var(--off-white, #f0f0f5);
+  }
+  .cpcard .cpc-lede { font-size: 33px; line-height: 1.42; color: rgba(243, 242, 250, 0.66); margin: 0; }
+
+  .cpcard .cpc-panel { flex: 1 1 auto; min-width: 0; }
+  .cpcard .cpc-frame {
+    border-radius: 14px; overflow: hidden; background: #e4edf6;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: 0 40px 90px rgba(0, 0, 0, 0.55), 0 6px 18px rgba(0, 0, 0, 0.35);
+  }
+  .cpcard .cpc-chrome {
+    display: flex; align-items: center; gap: 9px; padding: 13px 18px;
+    background: linear-gradient(180deg, #2a2a3d 0%, #21212f 100%);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.35);
+  }
+  .cpcard .cpc-chrome b { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.16); }
+  .cpcard .cpc-chrome b:nth-child(1) { background: #ff5f57; }
+  .cpcard .cpc-chrome b:nth-child(2) { background: #febc2e; }
+  .cpcard .cpc-chrome b:nth-child(3) { background: #28c840; }
+  .cpcard .cpc-chrome em {
+    margin-left: 12px; font-style: normal; font-size: 19px;
+    letter-spacing: 0.02em; color: rgba(243, 242, 250, 0.45);
+  }
+  .cpcard .cpc-frame img { display: block; width: 100%; height: auto; }
+
+  /* A tall capture is anchored to its top — the interesting rows are always first. The fade
+     makes the cut read as "there is more" rather than as a broken edge. The edit-screen capture
+     needs it; the map is a crop of the canvas and fits whole. The edit
+     screen is shown whole rather than cropped to the sidebar: the panel only means something
+     next to the entry it is about. */
+  .cpcard .cpc-frame.cpc-clip { max-height: 640px; position: relative; }
+  .cpcard .cpc-frame.cpc-clip img { object-fit: cover; object-position: top center; max-height: 600px; }
+  .cpcard .cpc-frame.cpc-clip::after {
+    content: '';
+    position: absolute; inset: auto 0 0 0; height: 130px;
+    background: linear-gradient(180deg, rgba(228,237,246,0) 0%, rgba(228,237,246,0.92) 78%, #e4edf6 100%);
+  }
+
+  .cpcard .cpc-caption {
+    display: block; margin-top: 20px; font-size: 22px; line-height: 1.45;
+    color: rgba(243, 242, 250, 0.52);
+  }
+  .cpcard .cpc-caption b { color: rgba(243, 242, 250, 0.80); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- 1 · Cover ============================================================ -->
+<section class="slide cover" data-n="1">
+  <div class="inner">
+    <div class="copy">
+      <div class="eyebrow"><span class="rule"></span> Craft CMS 5 &nbsp;·&nbsp; Relations</div>
+      <h1 class="gradient-text">Yarn</h1>
+      <p class="tagline">Every relation, from both&nbsp;ends.</p>
+      <p class="lede">What points at what, what nothing points at, and what breaks if you
+        delete it.</p>
+      <div class="badges">
+        <span class="badge price"><span class="dot"></span> Free</span>
+        <span class="badge">Craft 5.3+ · PHP 8.2+ · no dependencies</span>
+      </div>
+    </div>
+    <div class="mark"><img src="assets/icon.svg" alt=""></div>
+  </div>
+</section>
+
+<!-- 2 · The question ===================================================== -->
+<section class="slide statement" data-n="2">
+  <div class="inner">
+    <div class="eyebrow"><span class="rule"></span> The missing screen</div>
+    <div class="swap">
+      <span class="caption">Craft records every relation</span>
+      <span class="before mono">fields · reference tags · links · Matrix blocks</span>
+      <span class="arrow"></span>
+      <span class="caption">and never answers</span>
+      <span class="after gradient-text">Is anything still using this?</span>
+    </div>
+    <p class="lede">Yarn reads the relations Craft stores, and the ones it doesn’t, and answers at
+      the moment it matters — just before somebody presses Delete.</p>
+  </div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Yarn</b> &nbsp;·&nbsp; justinholt.com/plugins/craft-yarn</div>
+</section>
+
+<!-- 3 · control-panel screenshot — the map =============================== -->
+<section class="slide cpcard" data-n="3">
+  <div class="cpc-inner">
+    <div class="cpc-copy">
+      <div class="cpc-eyebrow"><i></i> The map</div>
+      <h2 class="cpc-h2">The whole site,<br>threaded</h2>
+      <p class="cpc-lede">Every element and every relation, coloured by kind. Click one to light
+        up its threads.</p>
+    </div>
+    <div class="cpc-panel">
+      <figure class="cpc-frame">
+        <div class="cpc-chrome"><b></b><b></b><b></b><em>Yarn map</em></div>
+        <img src="shots/crop-map.png" alt="">
+      </figure>
+      <span class="cpc-caption">One entry selected: its six outgoing and five incoming threads
+        stay lit, the rest of the site fades back. Solid lines are fields, dashed are
+        reference tags.</span>
+    </div>
+  </div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Yarn</b> &nbsp;·&nbsp; justinholt.com/plugins/craft-yarn</div>
+</section>
+
+<!-- 4 · Both ends of one element ========================================= -->
+<section class="slide feature" data-n="4">
+  <div class="inner">
+    <div class="copy">
+      <div class="eyebrow"><span class="rule"></span> Any element</div>
+      <h2>Both ends,<br>and the fallout</h2>
+      <p class="lede">What it points at, what points at it, and what breaks further down.</p>
+      <ul class="points">
+        <li><span class="tick"></span><span class="t">Grouped by the field each relation came through</span></li>
+        <li><span class="tick"></span><span class="t">Matrix blocks rolled up to the page that owns them</span></li>
+        <li><span class="tick"></span><span class="t">Reference tags in rich text count as relations</span></li>
+        <li><span class="tick"></span><span class="t">Drafts and revisions never count as a use</span></li>
+      </ul>
+    </div>
+    <div class="panel">
+      <div class="parts">
+        <div class="part">
+          <div class="label">Points at <b>4</b></div>
+          <div class="said">harbour-cranes.jpg <i>·</i> Operations <i>·</i> logistics</div>
+          <div class="also">The featured image, a topic and two tags — each listed under the
+            field it came through.</div>
+        </div>
+        <div class="part">
+          <div class="label">Pointed at by <b>4</b></div>
+          <div class="said">South quay plan <i>·</i> Port operations <i>·</i> +2</div>
+          <div class="also">Every one of them through a reference tag in body copy, which no
+            relation field would ever have shown.</div>
+        </div>
+        <div class="part hot">
+          <div class="label">Knock-on if deleted <b>3</b></div>
+          <div class="said">Newsroom <i>·</i> Tide-gate data <i>·</i> Tender notes</div>
+          <div class="also">Two hops out. They would not break at once, but the chain to them
+            would.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Yarn</b> &nbsp;·&nbsp; justinholt.com/plugins/craft-yarn</div>
+</section>
+
+<!-- 5 · Eight findings =================================================== -->
+<section class="slide feature" data-n="5">
+  <div class="inner">
+    <div class="copy">
+      <div class="eyebrow"><span class="rule"></span> Findings</div>
+      <h2>Eight things<br>worth knowing</h2>
+      <p class="lede">Each one says what to do about it, not just what is wrong.</p>
+      <ul class="points">
+        <li><span class="tick"></span><span class="t">Filter by check and severity, export as CSV or JSON</span></li>
+        <li><span class="tick"></span><span class="t">Dead reference tags found before a reader does</span></li>
+        <li><span class="tick"></span><span class="t">“Unused” always comes with what Yarn can’t see</span></li>
+        <li><span class="tick"></span><span class="t">Another plugin can add checks of its own</span></li>
+      </ul>
+    </div>
+    <div class="panel">
+      <div class="finds">
+        <div class="find error"><span class="what">Relations into the trash</span><span class="sev">error</span></div>
+        <div class="find error"><span class="what">Reference tags that resolve to nothing</span><span class="sev">error</span></div>
+        <div class="find warning"><span class="what">Relations to elements missing from this site</span><span class="sev">warning</span></div>
+        <div class="find warning"><span class="what">Live pages pointing at things that are not</span><span class="sev">warning</span></div>
+        <div class="find warning"><span class="what">Circular relations</span><span class="sev">warning</span></div>
+        <div class="find warning"><span class="what">Elements related to themselves</span><span class="sev">warning</span></div>
+        <div class="find"><span class="what">Nothing points at these</span><span class="sev">notice</span></div>
+        <div class="find"><span class="what">Unused assets</span><span class="sev">notice</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Yarn</b> &nbsp;·&nbsp; justinholt.com/plugins/craft-yarn</div>
+</section>
+
+<!-- 6 · control-panel screenshot — the sidebar panel ===================== -->
+<section class="slide cpcard" data-n="6">
+  <div class="cpc-inner">
+    <div class="cpc-copy">
+      <div class="cpc-eyebrow"><i></i> On every edit screen</div>
+      <h2 class="cpc-h2">Before you<br>press Delete</h2>
+      <p class="cpc-lede">A panel in every element’s sidebar that says what is using it, and
+        what emptying those fields would cost.</p>
+    </div>
+    <div class="cpc-panel">
+      <figure class="cpc-frame cpc-clip">
+        <div class="cpc-chrome"><b></b><b></b><b></b><em>Entry edit screen</em></div>
+        <img src="shots/yarn-panel.png" alt="">
+      </figure>
+      <span class="cpc-caption">The Relations panel reads the relations table directly — no
+        whole-site build on the way to an edit form — and links to the full picture.</span>
+    </div>
+  </div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Yarn</b> &nbsp;·&nbsp; justinholt.com/plugins/craft-yarn</div>
+</section>
+
+<!-- 7 · Console and export =============================================== -->
+<section class="slide feature" data-n="7">
+  <div class="inner">
+    <div class="copy">
+      <div class="eyebrow"><span class="rule"></span> Console</div>
+      <h2>Fail a deploy<br>on it</h2>
+      <p class="lede">Every screen is a command too, with an exit code a pipeline can stop on.</p>
+      <ul class="points">
+        <li><span class="tick"></span><span class="t">One element both ways, or the path between two</span></li>
+        <li><span class="tick"></span><span class="t">Export to JSON, CSV, Graphviz DOT or Mermaid</span></li>
+        <li><span class="tick"></span><span class="t">Cached per site, thrown away on every save</span></li>
+        <li><span class="tick"></span><span class="t">No tables, no dependencies, no build step</span></li>
+      </ul>
+    </div>
+    <div class="term">
+      <div class="chrome"></div>
+      <div class="body mono">
+        <div><span class="prompt">$</span> <span class="cmd">php craft yarn/findings --fail-on=error</span></div>
+        <div><span class="err">ERROR&nbsp;&nbsp;&nbsp;</span> <span class="out">Reference tag resolves to nothing: {entry:987654:url}</span></div>
+        <div><span class="err">ERROR&nbsp;&nbsp;&nbsp;</span> <span class="out">Reference tag resolves to nothing: {entry:72636:url}</span></div>
+        <div><span class="warn">WARNING&nbsp;</span> <span class="out">Circular relation through 2 elements</span></div>
+        <div><span class="warn">WARNING&nbsp;</span> <span class="out">South quay scheduling: the plan points at “South…</span></div>
+        <span class="blank"></span>
+        <div><span class="cmd">2 error, 3 warning, 157 notice</span></div>
+        <div><span class="prompt">$</span> <span class="cmd">echo $?</span></div>
+        <div><span class="err">65</span></div>
+        <div><span class="prompt">$</span> <span class="cmd">php craft yarn/export --format=mermaid &gt; site.mmd</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Yarn</b> &nbsp;·&nbsp; justinholt.com/plugins/craft-yarn</div>
+</section>
+
+<!-- 8 · Extending ======================================================== -->
+<section class="slide feature" data-n="8">
+  <div class="inner">
+    <div class="copy">
+      <div class="eyebrow"><span class="rule"></span> For plugins and templates</div>
+      <h2>Open at<br>both ends</h2>
+      <p class="lede">Your plugin’s relations go in. Yarn’s answers come out in Twig.</p>
+      <ul class="points">
+        <li><span class="tick"></span><span class="t">A source is a generator, so memory stays flat</span></li>
+        <li><span class="tick"></span><span class="t">Roll-up and site handling come with the context</span></li>
+        <li><span class="tick"></span><span class="t">usedBy() reads one table, cheap on a front end</span></li>
+      </ul>
+    </div>
+    <div class="panel">
+      <div class="places">
+        <div class="place">
+          <span class="chip mono">EVENT_REGISTER_EDGE_SOURCES</span>
+          <div class="where">Your own relations</div>
+          <div class="what">A link field, a menu builder — anything that keeps references in its own table.</div>
+        </div>
+        <div class="place">
+          <span class="chip mono">EVENT_DEFINE_FINDINGS</span>
+          <div class="where">Your own checks</div>
+          <div class="what">On the findings screen, in the console and in every export.</div>
+        </div>
+        <div class="place">
+          <span class="chip mono">EVENT_AFTER_BUILD_GRAPH</span>
+          <div class="where">Prune the graph</div>
+          <div class="what">Trim it to what your site means by a relation, before it is cached.</div>
+        </div>
+        <div class="place">
+          <span class="chip mono">craft.yarn.usedBy(entry)</span>
+          <div class="where">In templates</div>
+          <div class="what">“Also mentioned in”, and isUsed() for the asset you are about to show.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Yarn</b> &nbsp;·&nbsp; justinholt.com/plugins/craft-yarn</div>
+</section>
+
+<script>
+  var n = new URLSearchParams(location.search).get('s');
+  if (n) {
+    document.body.classList.add('single');
+    var el = document.querySelector('.slide[data-n="' + n + '"]');
+    if (el) el.classList.add('active');
+  }
+</script>
+</body>
+</html>

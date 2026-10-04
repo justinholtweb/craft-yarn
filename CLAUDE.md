@@ -133,6 +133,10 @@ none of those change the graph, only what is done with it.
   layout that settles in four seconds on screen is still wandering minutes later on a tab nobody is
   looking at — and then a click lands where a node used to be. There is a hard tick budget
   (`YarnMap.MAX_TICKS`) as well as the alpha floor.
+- **Skipping `from === to` after roll-up has to check that roll-up did it.** A Matrix block linking
+  to its own page becomes a page→page edge, which is noise. A page whose own content references
+  itself is the self-reference finding. Skipping both meant that finding could never fire from
+  content.
 - **`Assert::matches()` is final in PHPUnit 10**, so a test helper called `matches()` is a fatal at
   class load, not a failing test.
 - **Element types Yarn has no special knowledge of need a group key too** (`type:<class>`).
@@ -149,7 +153,7 @@ No local PHP on this Mac. PHP runs inside the plugin-testing container.
 
 ```sh
 cd ~/Sites/plugin-testing
-ddev exec php /var/www/craft-yarn/tests/integration/checks.php     # 82 checks
+ddev exec php /var/www/craft-yarn/tests/integration/checks.php     # 83 checks
 ddev exec bash -c 'find /var/www/craft-yarn/src -name "*.php" -print0 | xargs -0 -n1 php -l'
 ddev exec -d /var/www/craft-yarn vendor/bin/phpunit                # 42 unit tests
 ddev exec -d /var/www/craft-yarn vendor/bin/phpstan analyse --memory-limit=1G   # level 5
