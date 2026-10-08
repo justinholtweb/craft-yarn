@@ -30,7 +30,7 @@
                         {% for row in group.edges %}
                             <tr>
                                 <td>{% include 'yarn/_partials/node' with { node: row.node, site: site } only %}</td>
-                                <td style="width: 220px;" class="yarn-via">
+                                <td class="yarn-via yarn-col-via">
                                     {% if row.edge.via %}{{ "via {field}"|t('yarn', { field: row.edge.via }) }}{% endif %}
                                 </td>
                             </tr>
@@ -48,7 +48,7 @@
     <div class="yarn">
         {% include 'yarn/_partials/toolbar' %}
 
-        <div class="yarn-toolbar" style="margin-bottom: 10px;">
+        <div class="yarn-toolbar yarn-toolbar--tight">
             {% include 'yarn/_partials/node' with { node: node, link: false } %}
             <span class="light">#{{ node.id }}{% if node.uri %} · /{{ node.uri }}{% endif %}</span>
         </div>
@@ -69,14 +69,14 @@
         </div>
 
         {% if inCount > 0 %}
-            <div class="readable" style="margin-bottom: 18px;">
+            <div class="readable yarn-intro">
                 <p class="yarn-panel-warning">
                     {{ "Deleting this would leave {count} element(s) pointing at nothing."|t('yarn', { count: impact.direct|length }) }}
                 </p>
             </div>
         {% endif %}
 
-        <div class="yarn-map" data-yarn-map style="min-height: 420px; margin-bottom: 26px;">
+        <div class="yarn-map yarn-map--compact" data-yarn-map>
             <script type="application/json" data-yarn-config>{{ {
                 site: site.handle,
                 depth: depth,
@@ -84,17 +84,19 @@
                 elementUrlTemplate: cpUrl('yarn/element/__ID__', { site: site.handle }),
             }|json_encode|raw }}</script>
 
-            <svg role="img" aria-label="{{ "Relations around this element"|t('yarn') }}" style="height: 420px;"></svg>
-
-            <div class="yarn-map-overlay">
-                <div class="yarn-map-status" data-yarn-status></div>
+            <div class="yarn-map-bar">
+                <div class="yarn-map-status" data-yarn-status role="status"></div>
             </div>
 
-            <div class="yarn-detail" data-yarn-detail hidden></div>
+            <div class="yarn-map-canvas">
+                <svg role="img" aria-label="{{ "Relations around this element"|t('yarn') }}"></svg>
 
-            <div class="yarn-map-controls">
-                <button type="button" class="btn small" data-yarn-fit>{{ "Fit"|t('yarn') }}</button>
-                <button type="button" class="btn small" data-yarn-shake>{{ "Re-settle"|t('yarn') }}</button>
+                <div class="yarn-detail" data-yarn-detail hidden></div>
+
+                <div class="yarn-map-controls">
+                    <button type="button" class="btn small" data-yarn-fit>{{ "Fit"|t('yarn') }}</button>
+                    <button type="button" class="btn small" data-yarn-shake>{{ "Re-settle"|t('yarn') }}</button>
+                </div>
             </div>
         </div>
 
@@ -113,7 +115,7 @@
                 <thead>
                     <tr>
                         <th>{{ "Element"|t('yarn') }}</th>
-                        <th style="width: 100px;">{{ "Hops"|t('yarn') }}</th>
+                        <th class="yarn-col-narrow">{{ "Hops"|t('yarn') }}</th>
                     </tr>
                 </thead>
                 <tbody>

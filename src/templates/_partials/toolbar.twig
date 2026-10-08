@@ -4,7 +4,7 @@
 <div class="yarn-toolbar">
     {% if siteOptions|length > 1 %}
         <div>
-            <label for="yarn-site">{{ "Site"|t('yarn') }}</label>
+            <label class="yarn-toolbar-label" for="yarn-site">{{ "Site"|t('yarn') }}</label>
             {{ forms.select({
                 id: 'yarn-site',
                 name: 'site',

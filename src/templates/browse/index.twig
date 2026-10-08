@@ -13,13 +13,18 @@
             <input type="hidden" name="site" value="{{ site.handle }}">
 
             <div>
-                <label for="search">{{ "Search"|t('yarn') }}</label>
-                <input id="search" class="text" type="search" name="search" value="{{ search }}"
-                       placeholder="{{ "Element or field name"|t('yarn') }}" style="min-width: 240px;">
+                <label class="yarn-toolbar-label" for="search">{{ "Search"|t('yarn') }}</label>
+                {{ forms.text({
+                    id: 'search',
+                    name: 'search',
+                    type: 'search',
+                    value: search,
+                    placeholder: "Element or field name"|t('yarn'),
+                }) }}
             </div>
 
             <div>
-                <label for="kind">{{ "Relation kind"|t('yarn') }}</label>
+                <label class="yarn-toolbar-label" for="kind">{{ "Relation kind"|t('yarn') }}</label>
                 {{ forms.select({
                     id: 'kind',
                     name: 'kind',
@@ -29,19 +34,19 @@
             </div>
 
             <div>
-                <label for="group">{{ "Source"|t('yarn') }}</label>
-                <select id="group" name="group">
-                    <option value="">{{ "Anywhere"|t('yarn') }}</option>
-                    {% for candidate in groups %}
-                        <option value="{{ candidate.key }}" {{ candidate.key == group ? 'selected' }}>
-                            {{ candidate.label }} ({{ candidate.count }})
-                        </option>
-                    {% endfor %}
-                </select>
+                <label class="yarn-toolbar-label" for="group">{{ "Source"|t('yarn') }}</label>
+                {{ forms.select({
+                    id: 'group',
+                    name: 'group',
+                    value: group,
+                    options: [{ label: "Anywhere"|t('yarn'), value: '' }]|merge(groups|map(candidate => {
+                        label: candidate.label ~ ' (' ~ candidate.count ~ ')',
+                        value: candidate.key,
+                    })),
+                }) }}
             </div>
 
             <div>
-                <label>&nbsp;</label>
                 <button type="submit" class="btn submit">{{ "Filter"|t('yarn') }}</button>
             </div>
         </form>

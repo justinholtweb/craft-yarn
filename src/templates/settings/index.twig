@@ -46,7 +46,8 @@
                 disabled: readOnly,
             }) }}
 
-            {{ forms.multiselectField({
+            {{ forms.selectizeField({
+                multi: true,
                 label: "Ignored fields"|t('yarn'),
                 instructions: "Relation fields to leave out — usually one that relates everything to everything and drowns the map."|t('yarn'),
                 name: 'settings[ignoredFields]',
@@ -55,7 +56,8 @@
                 disabled: readOnly,
             }) }}
 
-            {{ forms.multiselectField({
+            {{ forms.selectizeField({
+                multi: true,
                 label: "Excluded sources"|t('yarn'),
                 instructions: "Sections, volumes and groups to leave out of the graph entirely."|t('yarn'),
                 name: 'settings[excludedGroups]',

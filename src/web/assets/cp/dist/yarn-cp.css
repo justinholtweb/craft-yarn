@@ -1,23 +1,24 @@
 /* Yarn — control panel styles.
    Colours are declared once here as custom properties and used by both the CSS and the map's
-   renderer, which reads them off the computed style rather than keeping a second copy. */
+   renderer, which reads them off the computed style rather than keeping a second copy. Every one
+   is one of Craft's own palette variables, so Yarn changes when the control panel does. */
 
 .yarn {
-    --yarn-accent: #4F46B8;
-    --yarn-entry: #4F46B8;
-    --yarn-asset: #0B8A6A;
-    --yarn-category: #B4690E;
-    --yarn-tag: #8E5AB8;
-    --yarn-user: #2F6FB8;
-    --yarn-global: #C2445C;
-    --yarn-other: #6B7280;
+    --yarn-accent: var(--indigo-600);
+    --yarn-entry: var(--indigo-600);
+    --yarn-asset: var(--teal-600);
+    --yarn-category: var(--amber-600);
+    --yarn-tag: var(--purple-500);
+    --yarn-user: var(--blue-600);
+    --yarn-global: var(--pink-600);
+    --yarn-other: var(--gray-500);
 
-    --yarn-ok: #3E8F56;
-    --yarn-disabled: #9AA3AF;
-    --yarn-pending: #3C7BB8;
-    --yarn-expired: #B4690E;
-    --yarn-deleted: #C0392B;
-    --yarn-absent: #C0392B;
+    --yarn-ok: var(--green-600);
+    --yarn-disabled: var(--gray-400);
+    --yarn-pending: var(--blue-600);
+    --yarn-expired: var(--amber-600);
+    --yarn-deleted: var(--red-600);
+    --yarn-absent: var(--red-600);
 }
 
 /* ---------------------------------------------------------------- toolbar */
@@ -38,13 +39,54 @@
     display: inline;
 }
 
-.yarn-toolbar label {
+/* Only the headings over each control. A bare `.yarn-toolbar label` also caught the label of
+   every checkbox, which then read as a heading with nothing under it. */
+.yarn-toolbar-label {
     display: block;
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: .04em;
-    color: var(--medium-text-color, #606d7b);
+    color: var(--medium-text-color);
     margin-bottom: 3px;
+}
+
+.yarn-toolbar-field--wide {
+    flex: 0 1 360px;
+    min-width: 240px;
+}
+
+/* Checkboxes sit on the controls' baseline, beside them rather than above. */
+.yarn-toolbar-field > .checkbox + label,
+.yarn-toolbar-field > input.checkbox {
+    margin-bottom: 9px;
+}
+
+.yarn-toolbar input[type="search"] {
+    min-width: 200px;
+}
+
+.yarn-toolbar--tight {
+    margin-bottom: 10px;
+}
+
+.yarn-intro {
+    margin-bottom: 18px;
+}
+
+.yarn-col-narrow { width: 90px; }
+.yarn-col-count { width: 160px; }
+.yarn-col-via { width: 220px; }
+.yarn-col-element { width: 260px; }
+
+.yarn-pagination {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 16px;
+}
+
+.yarn-map-help {
+    margin-top: 10px;
 }
 
 /* ------------------------------------------------------------------ stats */
@@ -57,9 +99,9 @@
 }
 
 .yarn-stat {
-    background: var(--gray-050, #f7f8f9);
-    border: 1px solid var(--hairline-color, rgba(51, 64, 77, .1));
-    border-radius: 6px;
+    background: var(--gray-050);
+    border: 1px solid var(--hairline-color);
+    border-radius: var(--large-border-radius);
     padding: 12px 14px;
 }
 
@@ -67,14 +109,17 @@
     font-size: 22px;
     font-weight: 600;
     line-height: 1.1;
-    color: var(--text-color, #3f4d5a);
+    color: var(--text-color);
 }
+
+.yarn-stat-value[data-tone="error"] { color: var(--yarn-deleted); }
+.yarn-stat-value[data-tone="warning"] { color: var(--yarn-expired); }
 
 .yarn-stat-label {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: .04em;
-    color: var(--medium-text-color, #606d7b);
+    color: var(--medium-text-color);
     margin-top: 4px;
 }
 
@@ -109,7 +154,7 @@
 }
 
 .yarn-node-group {
-    color: var(--medium-text-color, #606d7b);
+    color: var(--medium-text-color);
     font-size: 12px;
     white-space: nowrap;
 }
@@ -140,20 +185,20 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: .04em;
-    color: var(--medium-text-color, #606d7b);
+    color: var(--medium-text-color);
 }
 
 .yarn-via {
     font-size: 12px;
-    color: var(--medium-text-color, #606d7b);
+    color: var(--medium-text-color);
 }
 
 .yarn-empty {
     padding: 36px 20px;
     text-align: center;
-    color: var(--medium-text-color, #606d7b);
-    border: 1px dashed var(--hairline-color, rgba(51, 64, 77, .2));
-    border-radius: 6px;
+    color: var(--medium-text-color);
+    border: 1px dashed var(--hairline-color);
+    border-radius: var(--large-border-radius);
 }
 
 /* ----------------------------------------------------------------- groups */
@@ -176,12 +221,31 @@
 /* -------------------------------------------------------------------- map */
 
 .yarn-map {
-    position: relative;
-    border: 1px solid var(--hairline-color, rgba(51, 64, 77, .1));
-    border-radius: 6px;
-    background: var(--gray-050, #f7f8f9);
+    border: 1px solid var(--hairline-color);
+    border-radius: var(--large-border-radius);
+    background: var(--gray-050);
     overflow: hidden;
-    min-height: 560px;
+}
+
+/* Legend and status, above the drawing rather than floating over it. */
+.yarn-map-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 18px;
+    padding: 8px 12px;
+    background: var(--white);
+    border-bottom: 1px solid var(--hairline-color);
+    font-size: 12px;
+}
+
+.yarn-map-bar:empty {
+    display: none;
+}
+
+.yarn-map-canvas {
+    position: relative;
 }
 
 .yarn-map svg {
@@ -192,12 +256,20 @@
     cursor: grab;
 }
 
+.yarn-map--compact svg {
+    height: 420px;
+}
+
+.yarn-map--compact {
+    margin-bottom: 26px;
+}
+
 .yarn-map svg.is-panning {
     cursor: grabbing;
 }
 
 .yarn-edge {
-    stroke: rgba(51, 64, 77, .22);
+    stroke: var(--gray-300);
     stroke-width: 1;
     fill: none;
 }
@@ -206,50 +278,31 @@
 .yarn-edge.is-url { stroke-dasharray: 1 3; }
 .yarn-edge.is-structure { stroke-dasharray: 6 4; }
 .yarn-edge.is-lit { stroke: var(--yarn-accent); stroke-width: 2; stroke-opacity: .85; }
-.yarn-edge.is-dim { stroke-opacity: .07; }
+.yarn-edge.is-dim { stroke-opacity: .2; }
 
 .yarn-vertex circle {
-    stroke: #fff;
+    stroke: var(--white);
     stroke-width: 1.5;
     cursor: pointer;
 }
 
 .yarn-vertex text {
     font-size: 10px;
-    fill: var(--text-color, #3f4d5a);
+    fill: var(--text-color);
     pointer-events: none;
     paint-order: stroke;
-    stroke: rgba(255, 255, 255, .85);
+    stroke: var(--gray-050);
     stroke-width: 3px;
+    stroke-linejoin: round;
 }
 
 .yarn-vertex.is-dim { opacity: .18; }
 .yarn-vertex.is-selected circle { stroke: var(--yarn-accent); stroke-width: 3; }
 
-.yarn-map-overlay {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    pointer-events: none;
-}
-
-.yarn-map-overlay > * {
-    pointer-events: auto;
-}
-
 .yarn-legend {
-    background: rgba(255, 255, 255, .92);
-    border: 1px solid var(--hairline-color, rgba(51, 64, 77, .1));
-    border-radius: 6px;
-    padding: 8px 10px;
-    font-size: 12px;
     display: flex;
     flex-wrap: wrap;
-    gap: 4px 12px;
-    max-width: 320px;
+    gap: 4px 14px;
 }
 
 .yarn-legend button {
@@ -258,24 +311,19 @@
     gap: 6px;
     background: none;
     border: 0;
-    padding: 0;
+    padding: 2px 0;
     cursor: pointer;
     color: inherit;
     font: inherit;
 }
 
-.yarn-legend button.is-off {
+.yarn-legend button[aria-pressed="false"] {
     opacity: .35;
+    text-decoration: line-through;
 }
 
 .yarn-map-status {
-    background: rgba(255, 255, 255, .92);
-    border: 1px solid var(--hairline-color, rgba(51, 64, 77, .1));
-    border-radius: 6px;
-    padding: 6px 10px;
-    font-size: 12px;
-    color: var(--medium-text-color, #606d7b);
-    max-width: 320px;
+    color: var(--medium-text-color);
 }
 
 .yarn-detail {
@@ -283,11 +331,12 @@
     top: 10px;
     right: 10px;
     width: 280px;
-    background: #fff;
-    border: 1px solid var(--hairline-color, rgba(51, 64, 77, .1));
-    border-radius: 6px;
+    max-width: calc(100% - 20px);
+    background: var(--white);
+    border: 1px solid var(--hairline-color);
+    border-radius: var(--large-border-radius);
     padding: 12px 14px;
-    box-shadow: 0 4px 14px rgba(31, 41, 51, .1);
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--gray-900) 12%, transparent);
     font-size: 13px;
 }
 
@@ -307,7 +356,7 @@
     justify-content: space-between;
     gap: 10px;
     padding: 2px 0;
-    color: var(--medium-text-color, #606d7b);
+    color: var(--medium-text-color);
 }
 
 .yarn-detail-actions {
@@ -328,8 +377,8 @@
 /* ------------------------------------------------------- the sidebar panel */
 
 .yarn-panel {
-    border-top: 1px solid var(--hairline-color, rgba(51, 64, 77, .1));
-    border-bottom: 1px solid var(--hairline-color, rgba(51, 64, 77, .1));
+    border-top: 1px solid var(--hairline-color);
+    border-bottom: 1px solid var(--hairline-color);
     padding: 12px 0;
     margin: 12px 0;
 }
@@ -346,26 +395,18 @@
 
 .yarn-panel-count {
     font-size: 12px;
-    color: var(--medium-text-color, #606d7b);
+    color: var(--medium-text-color);
 }
 
 .yarn-panel-count b {
     display: block;
     font-size: 18px;
-    color: var(--text-color, #3f4d5a);
+    color: var(--text-color);
     line-height: 1.1;
 }
 
 .yarn-panel-warning {
-    color: #B4690E;
+    color: var(--yarn-expired);
     font-size: 12px;
     margin-bottom: 6px;
-}
-
-@media (prefers-color-scheme: dark) {
-    .yarn-legend,
-    .yarn-map-status { background: rgba(32, 38, 45, .92); }
-    .yarn-detail { background: #20262d; }
-    .yarn-vertex text { stroke: rgba(20, 24, 28, .85); }
-    .yarn-edge { stroke: rgba(210, 220, 230, .22); }
 }

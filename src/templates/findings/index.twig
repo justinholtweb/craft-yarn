@@ -11,11 +11,11 @@
 
         <div class="yarn-stats">
             <div class="yarn-stat">
-                <div class="yarn-stat-value" style="color: var(--yarn-deleted);">{{ severities.error|number }}</div>
+                <div class="yarn-stat-value" data-tone="error">{{ severities.error|number }}</div>
                 <div class="yarn-stat-label">{{ "Errors"|t('yarn') }}</div>
             </div>
             <div class="yarn-stat">
-                <div class="yarn-stat-value" style="color: var(--yarn-expired);">{{ severities.warning|number }}</div>
+                <div class="yarn-stat-value" data-tone="warning">{{ severities.warning|number }}</div>
                 <div class="yarn-stat-label">{{ "Warnings"|t('yarn') }}</div>
             </div>
             <div class="yarn-stat">
@@ -28,17 +28,21 @@
             <input type="hidden" name="site" value="{{ site.handle }}">
 
             <div>
-                <label for="check">{{ "Check"|t('yarn') }}</label>
-                <select id="check" name="check">
-                    <option value="">{{ "All checks"|t('yarn') }}</option>
-                    {% for id, name in names %}
-                        <option value="{{ id }}" {{ id == check ? 'selected' }}>{{ name }} ({{ tally[id] ?? 0 }})</option>
-                    {% endfor %}
-                </select>
+                <label class="yarn-toolbar-label" for="check">{{ "Check"|t('yarn') }}</label>
+                {% set checkOptions = [{ label: "All checks"|t('yarn'), value: '' }] %}
+                {% for id, name in names %}
+                    {% set checkOptions = checkOptions|push({ label: name ~ ' (' ~ (tally[id] ?? 0) ~ ')', value: id }) %}
+                {% endfor %}
+                {{ forms.select({
+                    id: 'check',
+                    name: 'check',
+                    value: check,
+                    options: checkOptions,
+                }) }}
             </div>
 
             <div>
-                <label for="severity">{{ "Severity"|t('yarn') }}</label>
+                <label class="yarn-toolbar-label" for="severity">{{ "Severity"|t('yarn') }}</label>
                 {{ forms.select({
                     id: 'severity',
                     name: 'severity',
@@ -53,7 +57,6 @@
             </div>
 
             <div>
-                <label>&nbsp;</label>
                 <button type="submit" class="btn submit">{{ "Filter"|t('yarn') }}</button>
             </div>
         </form>
@@ -68,9 +71,9 @@
             <table class="data fullwidth yarn-table">
                 <thead>
                     <tr>
-                        <th style="width: 90px;">{{ "Severity"|t('yarn') }}</th>
+                        <th class="yarn-col-narrow">{{ "Severity"|t('yarn') }}</th>
                         <th>{{ "Finding"|t('yarn') }}</th>
-                        <th style="width: 260px;">{{ "Element"|t('yarn') }}</th>
+                        <th class="yarn-col-element">{{ "Element"|t('yarn') }}</th>
                     </tr>
                 </thead>
                 <tbody>

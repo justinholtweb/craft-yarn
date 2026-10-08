@@ -21,36 +21,45 @@
         {% include 'yarn/_partials/stats' %}
 
         <div class="yarn-toolbar">
-            <div>
-                <label for="yarn-groups">{{ "Show only"|t('yarn') }}</label>
-                <select id="yarn-groups" multiple size="1" data-yarn-groups data-yarn-reload
-                        style="min-width: 220px; height: 34px;">
-                    {% for group in groups %}
-                        <option value="{{ group.key }}">{{ group.label }} ({{ group.count }})</option>
-                    {% endfor %}
-                </select>
+            <div class="yarn-toolbar-field yarn-toolbar-field--wide">
+                <label class="yarn-toolbar-label" for="yarn-groups">{{ "Show only"|t('yarn') }}</label>
+                {# Craft's own multi-select. A bare <select multiple> renders as "0 selected" in
+                   Chrome and as a two-row scrolling list in Firefox, and neither looks like Craft. #}
+                {{ forms.selectize({
+                    id: 'yarn-groups',
+                    multi: true,
+                    options: groups|map(group => { value: group.key, label: group.label ~ ' (' ~ group.count ~ ')' }),
+                    values: [],
+                    selectizeOptions: { placeholder: "All sources"|t('yarn') },
+                    inputAttributes: { data: { 'yarn-groups': true, 'yarn-reload': true } },
+                }) }}
             </div>
 
-            <div>
-                <label for="yarn-search">{{ "Find"|t('yarn') }}</label>
-                <input id="yarn-search" class="text" type="search" data-yarn-search
-                       placeholder="{{ "Highlight by name"|t('yarn') }}" style="min-width: 200px;">
+            <div class="yarn-toolbar-field">
+                <label class="yarn-toolbar-label" for="yarn-search">{{ "Find"|t('yarn') }}</label>
+                {{ forms.text({
+                    id: 'yarn-search',
+                    type: 'search',
+                    placeholder: "Highlight by name"|t('yarn'),
+                    inputAttributes: { data: { 'yarn-search': true } },
+                }) }}
             </div>
 
-            <div>
-                <label>&nbsp;</label>
+            <div class="yarn-toolbar-field">
                 {# On by default. The map is a picture of relations, and an element with none is a
                    dot with no thread attached — on a normal site there are thousands of them, and
                    they crowd out the part anybody came to look at. The count is on the cards
                    above, and the list of them is under Findings. #}
-                <label class="yarn-node-group">
-                    <input type="checkbox" data-yarn-hide-orphans data-yarn-reload checked>
-                    {{ "Hide unconnected"|t('yarn') }}
-                </label>
+                {{ forms.checkbox({
+                    id: 'yarn-hide-orphans',
+                    label: "Hide unconnected"|t('yarn'),
+                    checked: true,
+                    inputAttributes: { data: { 'yarn-hide-orphans': true, 'yarn-reload': true } },
+                }) }}
             </div>
 
-            <div data-yarn-focus hidden>
-                <label>{{ "Focused on"|t('yarn') }}</label>
+            <div class="yarn-toolbar-field" data-yarn-focus hidden>
+                <span class="yarn-toolbar-label">{{ "Focused on"|t('yarn') }}</span>
                 <span data-yarn-focus-label></span>
                 <button type="button" class="btn small" data-yarn-clear-focus>{{ "Show everything"|t('yarn') }}</button>
             </div>
@@ -67,28 +76,32 @@
                 elementUrlTemplate: cpUrl('yarn/element/__ID__', { site: site.handle }),
             }|json_encode|raw }}</script>
 
-            <svg role="img" aria-label="{{ "Relation map"|t('yarn') }}"></svg>
-
-            <div class="yarn-map-overlay">
+            {# The legend and the status sit in a bar above the canvas rather than floating over
+               it: anything laid over the drawing hides whichever nodes the layout puts under it. #}
+            <div class="yarn-map-bar">
                 <div class="yarn-legend" data-yarn-legend>
                     {% for key, label in kinds %}
-                        <button type="button" data-kind="{{ key }}">
+                        <button type="button" data-kind="{{ key }}" aria-pressed="true">
                             <span class="yarn-dot" data-kind="{{ key }}"></span>{{ label }}
                         </button>
                     {% endfor %}
                 </div>
-                <div class="yarn-map-status" data-yarn-status>{{ "Loading…"|t('yarn') }}</div>
+                <div class="yarn-map-status" data-yarn-status role="status">{{ "Loading…"|t('yarn') }}</div>
             </div>
 
-            <div class="yarn-detail" data-yarn-detail hidden></div>
+            <div class="yarn-map-canvas">
+                <svg role="img" aria-label="{{ "Relation map"|t('yarn') }}"></svg>
 
-            <div class="yarn-map-controls">
-                <button type="button" class="btn small" data-yarn-fit>{{ "Fit"|t('yarn') }}</button>
-                <button type="button" class="btn small" data-yarn-shake>{{ "Re-settle"|t('yarn') }}</button>
+                <div class="yarn-detail" data-yarn-detail hidden></div>
+
+                <div class="yarn-map-controls">
+                    <button type="button" class="btn small" data-yarn-fit>{{ "Fit"|t('yarn') }}</button>
+                    <button type="button" class="btn small" data-yarn-shake>{{ "Re-settle"|t('yarn') }}</button>
+                </div>
             </div>
         </div>
 
-        <p class="light" style="margin-top: 10px;">
+        <p class="light yarn-map-help">
             {{ "Drag to pan, scroll to zoom, click an element to light up its relations, double-click to see only its neighbourhood."|t('yarn') }}
             {% if graph.skippedKinds %}
                 <br>

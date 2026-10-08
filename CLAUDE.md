@@ -129,6 +129,19 @@ none of those change the graph, only what is done with it.
 - **The map's filters live above the canvas, not inside it.** Scoping `querySelector` to the map
   element silently ignored every filter the reader set. The renderer keeps `root` for the SVG and
   `scope` (`root.closest('.yarn')`) for the controls.
+- **Fit when the layout settles, not on a timer** (5.0.1, GitHub #1). The old single fit at 1.2s
+  framed a layout still spreading, so outer nodes drifted off the canvas — and it measured dots,
+  not labels. `fit()` now counts `node.labelWidth` (measured once in `draw()`), keeps clear of
+  `.yarn-map-controls`, and `start()` refits on settle unless `userMoved` (set by pan, wheel, drag).
+- **Nothing floats over the drawing.** The legend and status live in `.yarn-map-bar` above
+  `.yarn-map-canvas`; an overlay hides whatever nodes the layout puts under it.
+- **Craft's multi-select (selectize) announces changes with jQuery's `trigger('change')`**, which
+  native `addEventListener` never hears. `bindChrome()` binds `[data-yarn-reload]` through jQuery
+  when it's there. `forms.multiselect` is a bare `<select multiple>` — "0 selected" in Chrome, a
+  two-row list in Firefox — so use `forms.selectize({multi: true})`.
+- **The CP has no dark mode.** A `prefers-color-scheme: dark` block only ever painted dark panels on
+  a light control panel. Colours are Craft palette variables (`var(--indigo-600)`…); custom
+  properties resolve `var()` at computed-value time, so `readColours()` still gets real colours.
 - **`requestAnimationFrame` is throttled to about a frame a second in a background tab**, so a
   layout that settles in four seconds on screen is still wandering minutes later on a tab nobody is
   looking at — and then a click lands where a node used to be. There is a hard tick budget
@@ -154,6 +167,8 @@ No local PHP on this Mac. PHP runs inside the plugin-testing container.
 ```sh
 cd ~/Sites/plugin-testing
 ddev exec php /var/www/craft-yarn/tests/integration/checks.php     # 83 checks
+ddev exec php /var/www/craft-yarn/tests/integration/cp-ui.php      # 15: every screen renders, Craft controls, no inline styles/hex
+node --test ~/Sites/craft-yarn/tests/js/map.test.mjs                # 8: map framing, settle refit, selectize wiring (on the Mac)
 ddev exec bash -c 'find /var/www/craft-yarn/src -name "*.php" -print0 | xargs -0 -n1 php -l'
 ddev exec -d /var/www/craft-yarn vendor/bin/phpunit                # 42 unit tests
 ddev exec -d /var/www/craft-yarn vendor/bin/phpstan analyse --memory-limit=1G   # level 5

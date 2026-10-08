@@ -18,8 +18,11 @@ coloured by kind; relations are lines, dashed differently depending on where the
 - **Double-click** to focus: the map reloads showing only that element’s neighbourhood.
 - **Drag** an element to pin it where you put it. **Re-settle** unpins everything and runs the
   layout again.
-- The **legend** doubles as a filter — click a kind to hide it.
-- **Show only** filters to particular sections, volumes or groups. **Find** highlights by name.
+- The map frames itself: it fits the whole drawing, labels included, once the layout has settled.
+  Pan or zoom and it leaves the view alone; **Fit** frames it again.
+- The **legend**, in the bar above the map, doubles as a filter — click a kind to hide it.
+- **Show only** filters to particular sections, volumes or groups — pick as many as you like, and
+  remove one with its ×. **Find** highlights by name.
 
 **Hide unconnected** is on by default. A site with thirty thousand elements and four hundred
 relations is mostly dots with no threads attached; the counts for them are on the cards above, and

@@ -2,7 +2,7 @@
     "name": "justinholtweb/craft-yarn",
     "description": "See every relation on a Craft site — what points at what, what nothing points at, and what breaks if you delete it.",
     "type": "craft-plugin",
-    "version": "5.0.0",
+    "version": "5.0.1",
     "keywords": [
         "craft",
         "cms",

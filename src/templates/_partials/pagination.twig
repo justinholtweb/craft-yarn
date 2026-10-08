@@ -1,7 +1,7 @@
 {# Page links that keep every filter already in the URL. #}
 {% if pages > 1 %}
     {% set query = craft.app.request.queryParams %}
-    <nav class="pagination" style="margin-top: 16px; display: flex; gap: 8px; align-items: center;">
+    <nav class="pagination yarn-pagination" aria-label="{{ "Pages"|t('yarn') }}">
         {% if page > 1 %}
             <a class="btn" href="?{{ query|merge({ page: page - 1 })|url_encode }}">{{ "Previous"|t('yarn') }}</a>
         {% endif %}

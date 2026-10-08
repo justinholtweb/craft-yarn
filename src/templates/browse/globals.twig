@@ -8,7 +8,7 @@
     <div class="yarn">
         {% include 'yarn/_partials/toolbar' %}
 
-        <div class="readable" style="margin-bottom: 18px;">
+        <div class="readable yarn-intro">
             <p class="light">
                 {{ "Global sets relate like any other element, and what they relate to appears on every page that renders them. This is the list that explains why an image you thought was unused is on eleven thousand pages."|t('yarn') }}
             </p>
@@ -36,7 +36,7 @@
                             {% for node in row.direct %}
                                 <tr>
                                     <td>{% include 'yarn/_partials/node' with { node: node } %}</td>
-                                    <td style="width: 160px;" class="light">
+                                    <td class="light yarn-col-count">
                                         {{ "{count} other relations"|t('yarn', { count: node.inCount + node.outCount - 1 }) }}
                                     </td>
                                 </tr>

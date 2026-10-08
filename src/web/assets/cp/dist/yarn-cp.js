@@ -51,6 +51,9 @@
         this.byId = {};
         this.hiddenKinds = {};
         this.selected = null;
+        // Set once the reader pans, zooms or drags. Until then the view keeps re-fitting itself
+        // as the layout spreads; after it, the view is theirs and is never moved for them.
+        this.userMoved = false;
         this.alpha = 0;
         this.ticks = 0;
         this.running = false;
@@ -221,6 +224,7 @@
                 var text = el('text', { x: node.r + 4, y: 3 });
                 text.textContent = node.label.length > 28 ? node.label.slice(0, 27) + '…' : node.label;
                 group.appendChild(text);
+                node.text = text;
             }
 
             group.addEventListener('pointerdown', function (event) {
@@ -239,6 +243,19 @@
             node.el = group;
             node.circle = circle;
             self.nodeLayer.appendChild(group);
+        });
+
+        // Labels hang off to the right of their dot, so fitting has to know how far. Measured
+        // once, in graph units: the text is inside the scaled viewport, so zoom doesn't change it.
+        this.nodes.forEach(function (node) {
+            node.labelWidth = 0;
+            if (node.text) {
+                try {
+                    node.labelWidth = node.r + 4 + node.text.getComputedTextLength();
+                } catch (e) {
+                    node.labelWidth = node.r + 4 + node.text.textContent.length * 5.5;
+                }
+            }
         });
     };
 
@@ -287,6 +304,11 @@
             // at — and then a click lands where a node used to be.
             if (self.alpha < 0.005 || self.ticks > YarnMap.MAX_TICKS) {
                 self.running = false;
+                // The layout keeps spreading for seconds after the first fit, and a picture
+                // fitted to where things were mid-flight leaves the outer nodes off the edge.
+                if (!self.userMoved) {
+                    self.fit();
+                }
                 return;
             }
             requestAnimationFrame(frame);
@@ -376,12 +398,17 @@
 
     YarnMap.prototype.centre = function () {
         this.view = { x: 0, y: 0, k: 1 };
+        this.userMoved = false;
         this.render();
         var self = this;
-        // Fit once the layout has had a moment to spread out; fitting on the seeded positions
-        // would zoom hard into the spiral everything starts in.
-        setTimeout(function () {
-            self.fit();
+        // A first fit once the layout has had a moment to spread out — fitting on the seeded
+        // positions would zoom hard into the spiral everything starts in — and a final one when
+        // the simulation settles (see start()).
+        clearTimeout(this.fitTimer);
+        this.fitTimer = setTimeout(function () {
+            if (!self.userMoved) {
+                self.fit();
+            }
         }, 1200);
     };
 
@@ -395,20 +422,44 @@
         var maxX = -Infinity;
         var maxY = -Infinity;
 
+        var hidden = this.hiddenKinds;
         this.nodes.forEach(function (node) {
+            if (hidden[node.kind]) {
+                return;
+            }
+            // A label is about 10px tall and sits on the dot's centre line.
             minX = Math.min(minX, node.x - node.r);
-            minY = Math.min(minY, node.y - node.r);
-            maxX = Math.max(maxX, node.x + node.r);
-            maxY = Math.max(maxY, node.y + node.r);
+            minY = Math.min(minY, node.y - Math.max(node.r, 8));
+            maxX = Math.max(maxX, node.x + Math.max(node.r, node.labelWidth || 0));
+            maxY = Math.max(maxY, node.y + Math.max(node.r, 6));
         });
+
+        if (minX === Infinity) {
+            return;
+        }
 
         var width = this.svg.clientWidth || 900;
         var height = this.svg.clientHeight || 620;
-        var scale = Math.min(width / Math.max(1, maxX - minX + 80), height / Math.max(1, maxY - minY + 80));
 
-        this.view.k = Math.max(0.15, Math.min(2.5, scale));
-        this.view.x = (width - (maxX + minX) * this.view.k) / 2;
-        this.view.y = (height - (maxY + minY) * this.view.k) / 2;
+        // Keep clear of the Fit / Re-settle buttons along the bottom edge.
+        var margin = 24;
+        var bottom = 0;
+        var controls = this.root.querySelector('.yarn-map-controls');
+        if (controls) {
+            bottom = controls.offsetHeight + 10;
+        }
+
+        var availableWidth = Math.max(1, width - margin * 2);
+        var availableHeight = Math.max(1, height - margin * 2 - bottom);
+        var scale = Math.min(availableWidth / Math.max(1, maxX - minX), availableHeight / Math.max(1, maxY - minY));
+
+        // No lower clamp worth the name: a floor on the zoom is exactly what pushed a large graph
+        // off the edges. The wheel's own limit is the only one that matters.
+        // Capped at 1.5: a graph of two or three elements would otherwise be blown up until its
+        // labels read as headlines. The wheel still goes further for anyone who wants it.
+        this.view.k = Math.max(0.1, Math.min(1.5, scale));
+        this.view.x = margin + (availableWidth - (maxX - minX) * this.view.k) / 2 - minX * this.view.k;
+        this.view.y = margin + (availableHeight - (maxY - minY) * this.view.k) / 2 - minY * this.view.k;
         this.render();
     };
 
@@ -542,11 +593,20 @@
     YarnMap.prototype.bindChrome = function () {
         var self = this;
 
+        // Through jQuery when the control panel has it: Craft's multi-select (selectize) tells
+        // the hidden <select> it changed with jQuery's trigger(), which a native listener never
+        // hears. jQuery's own handlers hear both that and real change events.
         var reload = this.scope.querySelectorAll('[data-yarn-reload]');
         Array.prototype.forEach.call(reload, function (control) {
-            control.addEventListener('change', function () {
-                self.load();
-            });
+            if (window.jQuery) {
+                window.jQuery(control).on('change', function () {
+                    self.load();
+                });
+            } else {
+                control.addEventListener('change', function () {
+                    self.load();
+                });
+            }
         });
 
         var refit = this.root.querySelector('[data-yarn-fit]');
@@ -561,6 +621,7 @@
             shake.addEventListener('click', function () {
                 self.alpha = 1;
                 self.ticks = 0;
+                self.userMoved = false;
                 self.nodes.forEach(function (node) {
                     node.fixed = false;
                 });
@@ -591,7 +652,7 @@
                 }
                 var kind = button.getAttribute('data-kind');
                 self.hiddenKinds[kind] = !self.hiddenKinds[kind];
-                button.classList.toggle('is-off', self.hiddenKinds[kind]);
+                button.setAttribute('aria-pressed', self.hiddenKinds[kind] ? 'false' : 'true');
                 self.applyKindFilter();
             });
         }
@@ -641,6 +702,7 @@
                 return;
             }
             panning = { x: event.clientX, y: event.clientY, vx: self.view.x, vy: self.view.y };
+            self.userMoved = true;
             self.svg.classList.add('is-panning');
             self.svg.setPointerCapture(event.pointerId);
         });
@@ -673,6 +735,7 @@
             var px = event.clientX - rect.left;
             var py = event.clientY - rect.top;
             var factor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
+            self.userMoved = true;
             var next = Math.max(0.1, Math.min(6, self.view.k * factor));
 
             // Zoom about the pointer, not about the origin: anything else sends whatever you were
@@ -694,6 +757,7 @@
 
         function move(moveEvent) {
             moved = true;
+            self.userMoved = true;
             var point = self.toGraph(moveEvent);
             node.x = point.x;
             node.y = point.y;
@@ -713,6 +777,9 @@
         window.addEventListener('pointermove', move);
         window.addEventListener('pointerup', up);
     };
+
+    // Exposed for tests/js/map.test.mjs, which drives fitting and settling without a browser.
+    window.YarnMap = YarnMap;
 
     document.addEventListener('DOMContentLoaded', function () {
         var roots = document.querySelectorAll('[data-yarn-map]');

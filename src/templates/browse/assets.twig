@@ -24,32 +24,33 @@
             <input type="hidden" name="site" value="{{ site.handle }}">
 
             <div>
-                <label for="group">{{ "Volume"|t('yarn') }}</label>
-                <select id="group" name="group">
-                    <option value="">{{ "All volumes"|t('yarn') }}</option>
-                    {% for volume in volumes %}
-                        <option value="{{ volume.key }}" {{ volume.key == group ? 'selected' }}>
-                            {{ volume.label }} ({{ volume.count }})
-                        </option>
-                    {% endfor %}
-                </select>
+                <label class="yarn-toolbar-label" for="group">{{ "Volume"|t('yarn') }}</label>
+                {{ forms.select({
+                    id: 'group',
+                    name: 'group',
+                    value: group,
+                    options: [{ label: "All volumes"|t('yarn'), value: '' }]|merge(volumes|map(volume => {
+                        label: volume.label ~ ' (' ~ volume.count ~ ')',
+                        value: volume.key,
+                    })),
+                }) }}
+            </div>
+
+            <div class="yarn-toolbar-field">
+                {{ forms.checkbox({
+                    id: 'unused',
+                    name: 'unused',
+                    label: "Only the unused ones"|t('yarn'),
+                    checked: unusedOnly,
+                }) }}
             </div>
 
             <div>
-                <label>&nbsp;</label>
-                <label class="yarn-node-group">
-                    <input type="checkbox" name="unused" value="1" {{ unusedOnly ? 'checked' }}>
-                    {{ "Only the unused ones"|t('yarn') }}
-                </label>
-            </div>
-
-            <div>
-                <label>&nbsp;</label>
                 <button type="submit" class="btn submit">{{ "Filter"|t('yarn') }}</button>
             </div>
         </form>
 
-        <div class="readable" style="margin-bottom: 14px;">
+        <div class="readable yarn-intro">
             <p class="light">
                 {{ "“Unused” means nothing Yarn scans reaches it. An asset used only from a template, a CSS background or a source Yarn is not scanning will appear here — check before you delete."|t('yarn') }}
             </p>
@@ -62,7 +63,7 @@
                 <thead>
                     <tr>
                         <th>{{ "Asset"|t('yarn') }}</th>
-                        <th style="width: 90px;">{{ "Uses"|t('yarn') }}</th>
+                        <th class="yarn-col-narrow">{{ "Uses"|t('yarn') }}</th>
                         <th>{{ "Used by"|t('yarn') }}</th>
                     </tr>
                 </thead>
