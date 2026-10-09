@@ -11,6 +11,7 @@ use justinholtweb\yarn\models\Edge;
 use justinholtweb\yarn\models\Graph as GraphModel;
 use justinholtweb\yarn\models\Node;
 use justinholtweb\yarn\Plugin;
+use yii\db\Expression;
 
 /**
  * Relations for one element, from both directions.
@@ -217,6 +218,112 @@ class Relations extends Component
         }
 
         return array_values($found);
+    }
+
+    /**
+     * "Used by" counts for a page of elements at once — the element index column.
+     *
+     * The same answer {@see self::countUsages()} gives one element at a time (relation fields,
+     * rolled up, distinct per using element and field), in one query plus the owner walk, however
+     * many rows the index is showing.
+     *
+     * @param int[] $ids
+     * @return array<int, int> Every id asked about, 0 where nothing uses it.
+     */
+    public function usageCounts(array $ids, ?int $siteId = null): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        $counts = array_fill_keys($ids, 0);
+
+        if ($ids === []) {
+            return $counts;
+        }
+
+        $siteId ??= Craft::$app->getSites()->getCurrentSite()->id;
+
+        $query = (new Query())
+            ->select(['r.targetId', 'r.sourceId', 'r.fieldId'])
+            ->from(['r' => Table::RELATIONS])
+            ->innerJoin(['oe' => Table::ELEMENTS], '[[oe.id]] = [[r.sourceId]]')
+            ->where(['r.targetId' => $ids])
+            ->andWhere(['or', ['r.sourceSiteId' => null], ['r.sourceSiteId' => $siteId]])
+            ->andWhere([
+                'oe.draftId' => null,
+                'oe.revisionId' => null,
+                'oe.archived' => false,
+                'oe.dateDeleted' => null,
+            ]);
+
+        $ignored = $this->ignoredFieldIds();
+
+        if ($ignored !== []) {
+            $query->andWhere(['not', ['r.fieldId' => $ignored]]);
+        }
+
+        $rows = $query->all();
+
+        if ($rows === []) {
+            return $counts;
+        }
+
+        $owners = Plugin::getInstance()->getSettings()->rollUpNested
+            ? $this->ownersOf(array_values(array_unique(array_map(fn(array $row) => (int)$row['sourceId'], $rows))))
+            : [];
+
+        $seen = [];
+
+        foreach ($rows as $row) {
+            $target = (int)$row['targetId'];
+            $source = (int)$row['sourceId'];
+            $key = $target . ':' . ($owners[$source] ?? $source) . ':' . $row['fieldId'];
+
+            if (!isset($seen[$key])) {
+                $seen[$key] = true;
+                $counts[$target]++;
+            }
+        }
+
+        return $counts;
+    }
+
+    /**
+     * A correlated subquery that finds a row when something uses the element in `$targetColumn` —
+     * for `EXISTS` / `NOT EXISTS` in an element query, which is how the "Is used" condition rule
+     * filters without building the graph or loading a single element.
+     *
+     * Relation fields only, same as the sidebar panel and the index column. Roll-up does not
+     * matter here: a nested block that relates to an asset means the asset is used whoever owns
+     * the block.
+     *
+     * @param string $targetColumn The outer query's element id column, e.g. `elements.id`.
+     * @param string $siteColumn The outer query's site id column, e.g. `elements_sites.siteId`.
+     */
+    public function usedSubquery(string $targetColumn = 'elements.id', string $siteColumn = 'elements_sites.siteId'): Query
+    {
+        $query = (new Query())
+            ->select(new Expression('1'))
+            ->from(['yarn_r' => Table::RELATIONS])
+            ->innerJoin(['yarn_s' => Table::ELEMENTS], '[[yarn_s.id]] = [[yarn_r.sourceId]]')
+            ->where("[[yarn_r.targetId]] = [[$targetColumn]]")
+            ->andWhere([
+                'or',
+                ['yarn_r.sourceSiteId' => null],
+                "[[yarn_r.sourceSiteId]] = [[$siteColumn]]",
+            ])
+            ->andWhere([
+                'yarn_s.draftId' => null,
+                'yarn_s.revisionId' => null,
+                'yarn_s.archived' => false,
+                'yarn_s.dateDeleted' => null,
+            ]);
+
+        $ignored = $this->ignoredFieldIds();
+
+        if ($ignored !== []) {
+            $query->andWhere(['not', ['yarn_r.fieldId' => $ignored]]);
+        }
+
+        return $query;
     }
 
     /**

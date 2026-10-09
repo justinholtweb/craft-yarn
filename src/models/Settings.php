@@ -4,11 +4,14 @@ namespace justinholtweb\yarn\models;
 
 use Craft;
 use craft\base\Model;
+use craft\helpers\App;
+use justinholtweb\yarn\services\Findings;
 use ReflectionNamedType;
 use ReflectionProperty;
 
 /**
- * Plugin-wide settings. Project config only — Yarn has no tables of its own.
+ * Plugin-wide settings, in project config. The only thing Yarn keeps in a table of its own is the
+ * findings digest's "last sent" marker, which is state, not configuration.
  *
  * Nothing here is marked `required`. A `required` rule fails `savePluginSettings()` wholesale, so
  * one unfilled box would block saving every other setting on a fresh install.
@@ -29,6 +32,19 @@ class Settings extends Model
 
     public const GUARD_OFF = 'off';
     public const GUARD_LOG = 'log';
+
+    public const DIGEST_DAILY = 'daily';
+    public const DIGEST_WEEKLY = 'weekly';
+
+    /** What the digest reports by default: the checks that mean something renders wrongly. */
+    public const DIGEST_DEFAULT_CHECKS = [
+        Findings::CHECK_BROKEN,
+        Findings::CHECK_ABSENT,
+        Findings::CHECK_DISABLED,
+        Findings::CHECK_UNRESOLVED,
+        Findings::CHECK_CYCLES,
+        Findings::CHECK_SELF,
+    ];
 
     // ------------------------------------------------------------------ what counts as a thread
 
@@ -141,6 +157,57 @@ class Settings extends Model
 
     public string $logLevel = 'info';
 
+    // --------------------------------------------------------------------------- findings digest
+
+    /** Email a digest of new findings on a schedule. */
+    public bool $digestEnabled = false;
+
+    /** `daily` or `weekly`. */
+    public string $digestFrequency = self::DIGEST_WEEKLY;
+
+    /** ISO day of the week for a weekly digest: 1 is Monday, 7 is Sunday. */
+    public int $digestWeekday = 1;
+
+    /**
+     * Hour of the day, 0–23, in the system time zone (Settings → General), after which the digest
+     * for the day or week becomes due. "After", not "at": a site whose cron missed the hour still
+     * sends later in the same period, once.
+     */
+    public int $digestHour = 8;
+
+    /**
+     * Who gets it: email addresses separated by commas or new lines, or an environment variable
+     * (`$YARN_DIGEST_RECIPIENTS`) holding the same.
+     */
+    public string $digestRecipients = '';
+
+    /**
+     * Send a digest even when there is nothing new since the last one.
+     *
+     * Off by default. A weekly email that says "nothing to report" fifty weeks a year teaches
+     * everybody who gets it to stop opening it, and the two weeks it matters go unread with the rest.
+     */
+    public bool $digestSendWhenEmpty = false;
+
+    /** The site whose graph the digest reports on, by handle. Empty for the primary site. */
+    public string $digestSite = '';
+
+    /**
+     * Checks the digest reports. Empty means every check.
+     *
+     * Orphans and unused assets are left out by default: they are housekeeping, not breakage, and
+     * on most sites they would bury the one broken reference tag the digest exists to surface.
+     *
+     * @var string[]
+     */
+    public array $digestChecks = self::DIGEST_DEFAULT_CHECKS;
+
+    /**
+     * Also check whether a digest is due at the end of web requests (at most every five minutes)
+     * and queue it, for sites without a cron job running `yarn/digest/send`.
+     */
+    public bool $digestWebTrigger = true;
+
     // ------------------------------------------------------------------------------------ rules
 
     public function attributeLabels(): array
@@ -161,13 +228,27 @@ class Settings extends Model
             'deleteGuard' => Craft::t('yarn', 'Record deletions of elements in use'),
             'deleteGuardKinds' => Craft::t('yarn', 'Watch these element kinds'),
             'logLevel' => Craft::t('yarn', 'Log level'),
+            'digestEnabled' => Craft::t('yarn', 'Email a findings digest'),
+            'digestFrequency' => Craft::t('yarn', 'How often'),
+            'digestWeekday' => Craft::t('yarn', 'Day of the week'),
+            'digestHour' => Craft::t('yarn', 'Hour'),
+            'digestRecipients' => Craft::t('yarn', 'Recipients'),
+            'digestSendWhenEmpty' => Craft::t('yarn', 'Send even when there is nothing new'),
+            'digestSite' => Craft::t('yarn', 'Site'),
+            'digestChecks' => Craft::t('yarn', 'Checks to report'),
+            'digestWebTrigger' => Craft::t('yarn', 'Check from web requests too'),
         ];
     }
 
     protected function defineRules(): array
     {
         return [
-            [['rollUpNested', 'includeDisabled', 'orphansIgnoreRoutable', 'showElementPanel'], 'boolean'],
+            [['rollUpNested', 'includeDisabled', 'orphansIgnoreRoutable', 'showElementPanel', 'digestEnabled', 'digestSendWhenEmpty', 'digestWebTrigger'], 'boolean'],
+            [['digestFrequency'], 'in', 'range' => [self::DIGEST_DAILY, self::DIGEST_WEEKLY]],
+            [['digestWeekday'], 'integer', 'min' => 1, 'max' => 7],
+            [['digestHour'], 'integer', 'min' => 0, 'max' => 23],
+            [['digestRecipients'], 'validateRecipients'],
+            [['digestChecks'], 'validateChecks', 'skipOnEmpty' => false],
             [['cacheDuration'], 'integer', 'min' => 0, 'max' => 86400],
             [['maxNodes'], 'integer', 'min' => 20, 'max' => 5000],
             [['scanBatchSize'], 'integer', 'min' => 50, 'max' => 5000],
@@ -201,6 +282,53 @@ class Settings extends Model
                 ]));
             }
         }
+    }
+
+    public function validateRecipients(string $attribute): void
+    {
+        // An environment variable is checked for what it resolves to here, and again at send time,
+        // because the value can differ between this environment and the one that sends.
+        foreach ($this->recipientList(true) as $address) {
+            $this->addError($attribute, Craft::t('yarn', '“{address}” is not an email address.', [
+                'address' => $address,
+            ]));
+        }
+    }
+
+    public function validateChecks(string $attribute): void
+    {
+        foreach ($this->$attribute as $check) {
+            if (!in_array($check, Findings::CHECKS, true)) {
+                $this->addError($attribute, Craft::t('yarn', '“{name}” is not a check Yarn knows.', [
+                    'name' => $check,
+                ]));
+            }
+        }
+    }
+
+    /**
+     * The digest's recipients, parsed: environment variable resolved, split on commas, semicolons
+     * and whitespace, de-duplicated.
+     *
+     * @param bool $invalid Return the entries that are *not* email addresses instead.
+     * @return string[]
+     */
+    public function recipientList(bool $invalid = false): array
+    {
+        $raw = (string)App::parseEnv($this->digestRecipients);
+        $parts = preg_split('/[\s,;]+/', $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $valid = [];
+        $bad = [];
+
+        foreach (array_unique($parts) as $part) {
+            if (filter_var($part, FILTER_VALIDATE_EMAIL) !== false) {
+                $valid[] = $part;
+            } else {
+                $bad[] = $part;
+            }
+        }
+
+        return $invalid ? $bad : $valid;
     }
 
     // -------------------------------------------------------------------------------- normalise
@@ -253,7 +381,7 @@ class Settings extends Model
             }
         }
 
-        foreach (['sources', 'orphanKinds', 'deleteGuardKinds'] as $key) {
+        foreach (['sources', 'orphanKinds', 'deleteGuardKinds', 'digestChecks'] as $key) {
             if (isset($values[$key])) {
                 // A checkbox group with nothing ticked posts `['']`, not `[]`.
                 $values[$key] = array_values(array_filter(

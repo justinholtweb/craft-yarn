@@ -9,8 +9,20 @@ summary: Common questions about what Yarn sees, what it changes and why it won�
 
 ### Does Yarn add any database tables?
 
-No. It reads Craft’s own tables and assembles the graph in memory, cached in whatever cache Craft
-is configured to use. Uninstalling leaves nothing behind.
+One, small: `yarn_digests`, a single row recording when the findings digest last went and what it
+said, so it is sent once per period and can tell you what is new. Everything else Yarn reads from
+Craft’s own tables and assembles in memory, cached in whatever cache Craft is configured to use.
+Uninstalling drops the table and leaves nothing behind.
+
+### Can I filter the Assets index by “unused”?
+
+Yes. Add the **Is used** rule to the Assets (or Entries) index filter, a custom source, or any
+other asset or entry condition, and combine it with Craft’s own filters and bulk actions. There is
+also a **Used by** column you can switch on in the index’s table view.
+
+Both count **relation fields** only, like the Relations panel — they run as one database
+subquery, so they stay fast on a large volume. Reference tags and hard-coded links live inside
+field content and need the full graph; for those, use **Yarn → Assets**.
 
 ### Is it safe to delete everything on the “unused assets” list?
 

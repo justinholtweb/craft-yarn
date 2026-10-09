@@ -26,12 +26,13 @@ Findings beneath it.
 
 ## Permissions
 
-Two, both under **Yarn** in a user group’s permissions:
+Three, all under **Yarn** in a user group’s permissions:
 
 | Permission | What it allows |
 | --- | --- |
 | See the site’s relations | Every Yarn screen, and the Relations panel on element edit screens |
 | Export the graph | Downloading the graph as JSON, CSV, DOT or Mermaid |
+| Send a test findings digest | The **Send a test digest now** button on Findings and Settings |
 
 Settings are admin-only, and respect `allowAdminChanges`.
 
@@ -52,6 +53,16 @@ seconds; after that it is cached until an element is saved or the cache duration
 
 If the map says *“trimmed to the busiest N”*, that is the `Map node limit` setting doing its job.
 Filter by source, or double-click an element to see only its neighbourhood.
+
+## Scheduled digest
+
+If you switch the findings digest on, add a cron job — it sends nothing until the digest is due:
+
+```sh
+*/15 * * * * php /path/to/craft yarn/digest/send
+```
+
+Without cron, the web fallback queues it instead; see [Configuration](configuration.md#findings-digest).
 
 ## Uninstalling
 

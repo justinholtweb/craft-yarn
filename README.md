@@ -30,6 +30,9 @@ map, as lists you can filter, and as a panel on every element edit screen.
   live pages pointing at things that are not live, reference tags that resolve to nothing,
   orphans, unused assets, circular relations, and elements related to themselves.
 - **A panel on every element edit screen** that says what is using this, before you delete it.
+- **In Craft’s own indexes:** a *Used by* column and an *Is used* filter rule for assets and
+  entries, so “unused images in this volume” sits alongside Craft’s filters and bulk actions.
+- **A findings digest** by email, daily or weekly, listing only what is new since the last one.
 - **Console commands** for all of it, with an exit code you can fail a deploy on.
 - **Export** to JSON, CSV, Graphviz DOT or Mermaid.
 
@@ -79,13 +82,15 @@ php craft yarn/findings --fail-on=error # audit; exits non-zero for CI
 php craft yarn/path 1234 5678           # how one element reaches another
 php craft yarn/export --format=dot > site.dot
 php craft yarn/map/flush                # throw away cached graphs
+php craft yarn/digest/send              # the findings digest, for cron; sends once per period
 ```
 
 Every command takes `--site=<handle>` and `--fresh`.
 
 ## Requirements
 
-Craft CMS 5.3+, PHP 8.2+. No database tables, no runtime dependencies, no build step.
+Craft CMS 5.3+, PHP 8.2+. No runtime dependencies, no build step, and one small table (the
+findings digest's “last sent” marker).
 
 ## Installation
 

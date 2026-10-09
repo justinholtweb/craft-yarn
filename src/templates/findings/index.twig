@@ -108,5 +108,9 @@
 
             {% include 'yarn/_partials/pagination' %}
         {% endif %}
+
+        {% if digestState %}
+            {% include 'yarn/_partials/digest' with { state: digestState, next: digestNext } %}
+        {% endif %}
     </div>
 {% endblock %}

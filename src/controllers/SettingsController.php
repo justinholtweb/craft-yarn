@@ -39,14 +39,10 @@ class SettingsController extends BaseController
 
     public function actionIndex(): Response
     {
-        return $this->renderTemplate('yarn/settings/index', [
+        return $this->renderTemplate('yarn/settings/index', array_merge($this->options(), [
             'settings' => Plugin::getInstance()->getSettings(),
-            'sourceOptions' => $this->sourceOptions(),
-            'kindOptions' => $this->kindOptions(),
-            'groupOptions' => $this->groupOptions(),
-            'fieldOptions' => $this->fieldOptions(),
             'readOnly' => !Craft::$app->getConfig()->getGeneral()->allowAdminChanges,
-        ]);
+        ]));
     }
 
     public function actionSave(): Response
@@ -65,14 +61,10 @@ class SettingsController extends BaseController
             $this->setFailFlash(Craft::t('yarn', 'Couldn’t save settings.'));
             Craft::$app->getUrlManager()->setRouteParams(['settings' => $settings]);
 
-            return $this->renderTemplate('yarn/settings/index', [
+            return $this->renderTemplate('yarn/settings/index', array_merge($this->options(), [
                 'settings' => $settings,
-                'sourceOptions' => $this->sourceOptions(),
-                'kindOptions' => $this->kindOptions(),
-                'groupOptions' => $this->groupOptions(),
-                'fieldOptions' => $this->fieldOptions(),
                 'readOnly' => false,
-            ]);
+            ]));
         }
 
         if (!Craft::$app->getPlugins()->savePluginSettings($plugin, $settings->toArray())) {
@@ -89,6 +81,59 @@ class SettingsController extends BaseController
         $this->setSuccessFlash(Craft::t('yarn', 'Settings saved.'));
 
         return $this->redirect(UrlHelper::cpUrl('yarn/settings'));
+    }
+
+    /**
+     * Everything the settings screen offers a choice from, plus the digest's current state.
+     *
+     * @return array<string, mixed>
+     */
+    private function options(): array
+    {
+        $plugin = Plugin::getInstance();
+        $digest = $plugin->digest;
+
+        $checkOptions = [];
+
+        foreach ($plugin->findings->names() as $id => $name) {
+            $checkOptions[] = ['label' => $name, 'value' => $id];
+        }
+
+        $siteOptions = [['label' => Craft::t('yarn', 'Primary site'), 'value' => '']];
+
+        foreach (Craft::$app->getSites()->getAllSites() as $site) {
+            $siteOptions[] = ['label' => $site->name, 'value' => $site->handle];
+        }
+
+        $weekdayOptions = [];
+
+        foreach (range(1, 7) as $day) {
+            // 2024-01-01 was a Monday, so day N of that week is ISO weekday N.
+            $weekdayOptions[] = [
+                'label' => Craft::$app->getFormatter()->asDate("2024-01-0$day", 'php:l'),
+                'value' => $day,
+            ];
+        }
+
+        $hourOptions = [];
+
+        foreach (range(0, 23) as $hour) {
+            $hourOptions[] = ['label' => sprintf('%02d:00', $hour), 'value' => $hour];
+        }
+
+        return [
+            'sourceOptions' => $this->sourceOptions(),
+            'kindOptions' => $this->kindOptions(),
+            'groupOptions' => $this->groupOptions(),
+            'fieldOptions' => $this->fieldOptions(),
+            'checkOptions' => $checkOptions,
+            'digestSiteOptions' => $siteOptions,
+            'weekdayOptions' => $weekdayOptions,
+            'hourOptions' => $hourOptions,
+            'timeZone' => Craft::$app->getTimeZone(),
+            'digestState' => $digest->state(),
+            'digestNext' => $digest->nextDueAt(),
+        ];
     }
 
     /** @return array<int, array{label: string, value: string}> */

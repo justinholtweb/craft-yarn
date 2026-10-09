@@ -1,0 +1,35 @@
+{%- autoescape false -%}
+{% if isTest %}{{ "This is a test. It shows what the next digest would say; the real one will still go out on schedule."|t('yarn') }}
+
+{% endif %}
+{{ "Yarn findings for {site}"|t('yarn', { site: siteName }) }}
+{% if since %}{{ "New since the last digest, sent {date}."|t('yarn', { date: since|datetime('short') }) }}{% else %}{{ "The first digest, so everything counts as new."|t('yarn') }}{% endif %}
+
+
+{% if newCount -%}
+{{ "{count, plural, =1{One new finding} other{# new findings}}"|t('yarn', { count: newCount }) }}
+
+{% for item in items -%}
+[{{ item.severity|upper }}] {{ item.title }}
+{% if item.detail %}  {{ item.detail }}
+{% endif %}{% if item.url %}  {{ item.url }}
+{% endif %}
+
+{% endfor -%}
+{% if more %}{{ "… and {count} more."|t('yarn', { count: more|number }) }}
+
+{% endif -%}
+{%- else -%}
+{{ "Nothing new since the last digest."|t('yarn') }}
+
+{% endif -%}
+{{ "On the site now: {errors} errors, {warnings} warnings, {notices} notices across the checks this digest reports."|t('yarn', {
+    errors: severities.error|number,
+    warnings: severities.warning|number,
+    notices: severities.notice|number,
+}) }}
+
+{{ "Open the findings"|t('yarn') }}: {{ findingsUrl }}
+
+{{ "Yarn can only see what it scans: relation fields, and reference tags or links when those sources are on. Change what this digest reports, or who gets it, in Yarn’s settings:"|t('yarn') }} {{ settingsUrl }}
+{% endautoescape -%}

@@ -2,6 +2,7 @@
 
 namespace justinholtweb\yarn\controllers;
 
+use Craft;
 use justinholtweb\yarn\models\Finding;
 use justinholtweb\yarn\Plugin;
 use yii\web\Response;
@@ -31,6 +32,7 @@ class FindingsController extends BaseController
         }));
 
         $total = count($filtered);
+        $canDigest = Craft::$app->getUser()->checkPermission(Plugin::PERMISSION_DIGEST);
         $pages = max(1, (int)ceil($total / self::PER_PAGE));
         $page = min($page, $pages);
 
@@ -47,6 +49,9 @@ class FindingsController extends BaseController
             'tally' => $service->tally($all),
             'severities' => $service->severities($all),
             'names' => $service->names(),
+            // Only read for someone who will see the digest panel; it is one row, but it is a row.
+            'digestState' => $canDigest ? Plugin::getInstance()->digest->state() : null,
+            'digestNext' => $canDigest ? Plugin::getInstance()->digest->nextDueAt() : null,
         ]);
     }
 }

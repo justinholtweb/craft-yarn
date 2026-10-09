@@ -123,6 +123,24 @@ Event::on(Findings::class, Findings::EVENT_DEFINE_FINDINGS, function(DefineFindi
 
 Findings are sorted by severity afterwards, so order does not matter.
 
+## The findings digest
+
+`Digest::EVENT_BEFORE_SEND` fires before every digest, scheduled or test, with the recipients,
+subject and the variables the email templates get. Change any of them, or cancel:
+
+```php
+use justinholtweb\yarn\events\DigestEvent;
+use justinholtweb\yarn\services\Digest;
+
+Event::on(Digest::class, Digest::EVENT_BEFORE_SEND, function(DigestEvent $e) {
+    if (!$e->isTest) {
+        $e->recipients[] = 'oncall@example.com';
+    }
+});
+```
+
+A cancelled scheduled digest leaves the period unclaimed, so the next run asks again.
+
 ## The graph itself
 
 `Plugin::getInstance()->graph->get($siteId)` hands back a `Graph` model. It is a plain object with

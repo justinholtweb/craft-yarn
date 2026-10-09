@@ -87,6 +87,11 @@ php craft yarn/findings --fail-on=warning
 
 Exit code is 0 unless `--fail-on` is set and something at or above that severity was found.
 
+## By email
+
+The findings digest sends what is new since the last one, daily or weekly. See
+[Configuration](configuration.md#findings-digest).
+
 ## Adding your own
 
 `DefineFindingsEvent` fires after every built-in check, with the findings they produced. Add your

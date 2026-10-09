@@ -1,5 +1,20 @@
 # Release Notes for Yarn
 
+## Unreleased
+
+### Added
+
+- **Findings digest.** Yarn can email what it has found since the last digest — daily or weekly, at an hour you choose, to a list of recipients (or an environment variable) — so a broken reference tag or a live page pointing at a disabled entry is noticed without anybody opening Yarn. It sends once per period, and only when there is something new unless you ask for an “all clear”. Set it up under **Yarn → Settings → Findings digest**.
+- `php craft yarn/digest/send` for cron (safe to run every few minutes; it sends once per period) and `yarn/digest/status`. Sites without cron can leave “Check from web requests too” on, and the digest is queued from ordinary traffic instead.
+- **Send a test digest now**, on the Findings and Settings screens, behind a new *Send a test findings digest* permission.
+- A **Used by** column for the Assets and Entries indexes, counted for the whole page in one query.
+- An **Is used** condition rule for assets and entries — filter an index to the unused images in a volume and combine it with Craft’s own filters and bulk actions. It counts relation fields, as the Relations panel does, and runs as a single database subquery.
+- `Digest::EVENT_BEFORE_SEND`, to change a digest’s recipients or content, or cancel it.
+
+### Changed
+
+- Yarn now has one database table, `yarn_digests`, holding the digest’s “last sent” marker. Run `php craft up` after updating.
+
 ## 5.0.1 — 2026-10-08
 
 ### Fixed

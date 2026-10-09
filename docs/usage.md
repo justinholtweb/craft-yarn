@@ -51,6 +51,19 @@ Read the caveat on that page before acting on it. “Unused” means *nothing Ya
 an asset used only from a template, from a CSS background, or from a source you have switched off
 looks identical to one nobody wants.
 
+## In Craft’s own indexes
+
+The Assets and Entries indexes get two things:
+
+- a **Used by** column (table view → columns), showing how many elements relate to each row and
+  linking to Yarn’s view of it;
+- an **Is used** condition rule, in the index filter, custom sources and anywhere else Craft takes an
+  asset or entry condition — so “unused images in this volume” is a filter you can combine with
+  file kind, date and Craft’s bulk actions.
+
+Both count relation fields only, rolled up like the Relations panel, and both are a single
+query for the whole page — the rule is an `EXISTS` subquery, never a scan of the site.
+
 ## Globals
 
 **Yarn → Globals** lists each global set, what it points at directly, and how far that reaches.
@@ -62,6 +75,9 @@ footer global appears on every page on the site, and nothing in Craft says so.
 
 **Yarn → Findings** runs every check and sorts the results worst first. See
 [findings.md](findings.md) for what each one means.
+
+New findings can also come to you: the **findings digest** emails what is new since the last one,
+daily or weekly. See [Configuration](configuration.md#findings-digest).
 
 ## Templates
 
@@ -119,6 +135,15 @@ php craft yarn/export --format=dot | dot -Tsvg > site.svg
 ```
 
 Every command takes `--site=<handle>` and `--fresh` (ignore the cache).
+
+```sh
+php craft yarn/digest/send                # send the findings digest if it is due (for cron)
+php craft yarn/digest/send --force        # send now, whatever the schedule says
+php craft yarn/digest/status              # last run, last send, next due
+```
+
+`yarn/digest/send` is idempotent — one send per period however often cron runs it — and exits 0
+unless the digest is on with no valid recipients (78) or the send failed (1; the next run retries).
 
 `--fail-on` takes `error`, `warning`, `notice` or `never` (the default). In a deploy pipeline,
 `--fail-on=error` stops a release that would ship a page pointing into the trash.

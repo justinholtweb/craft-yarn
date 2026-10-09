@@ -100,6 +100,91 @@
 
             <hr>
 
+            <h2 id="digest">{{ "Findings digest"|t('yarn') }}</h2>
+
+            {{ forms.lightswitchField({
+                label: "Email a findings digest"|t('yarn'),
+                instructions: "Once a day or once a week, email what Yarn has found since the last digest, so a broken reference is noticed without anybody opening Yarn to look."|t('yarn'),
+                name: 'settings[digestEnabled]',
+                on: settings.digestEnabled,
+                disabled: readOnly,
+            }) }}
+
+            {{ forms.selectField({
+                label: "How often"|t('yarn'),
+                name: 'settings[digestFrequency]',
+                value: settings.digestFrequency,
+                options: [
+                    { label: "Daily"|t('yarn'), value: 'daily' },
+                    { label: "Weekly"|t('yarn'), value: 'weekly' },
+                ],
+                disabled: readOnly,
+            }) }}
+
+            {{ forms.selectField({
+                label: "Day of the week"|t('yarn'),
+                instructions: "For a weekly digest."|t('yarn'),
+                name: 'settings[digestWeekday]',
+                value: settings.digestWeekday,
+                options: weekdayOptions,
+                disabled: readOnly,
+            }) }}
+
+            {{ forms.selectField({
+                label: "Hour"|t('yarn'),
+                instructions: "In the system time zone ({zone}). The digest goes out on the first run at or after this hour, once per day or week."|t('yarn', { zone: timeZone }),
+                name: 'settings[digestHour]',
+                value: settings.digestHour,
+                options: hourOptions,
+                disabled: readOnly,
+            }) }}
+
+            {{ forms.autosuggestField({
+                label: "Recipients"|t('yarn'),
+                instructions: "Email addresses, separated by commas, or an environment variable that holds them."|t('yarn'),
+                name: 'settings[digestRecipients]',
+                value: settings.digestRecipients,
+                suggestEnvVars: true,
+                disabled: readOnly,
+                errors: settings.getErrors('digestRecipients'),
+            }) }}
+
+            {{ forms.lightswitchField({
+                label: "Send even when there is nothing new"|t('yarn'),
+                instructions: "Off, a period with nothing new sends nothing. An email that says “all clear” every week is one people learn to stop opening."|t('yarn'),
+                name: 'settings[digestSendWhenEmpty]',
+                on: settings.digestSendWhenEmpty,
+                disabled: readOnly,
+            }) }}
+
+            {{ forms.selectField({
+                label: "Site"|t('yarn'),
+                name: 'settings[digestSite]',
+                value: settings.digestSite,
+                options: digestSiteOptions,
+                disabled: readOnly,
+            }) }}
+
+            {{ forms.checkboxGroupField({
+                label: "Checks to report"|t('yarn'),
+                instructions: "Nothing ticked reports every check. Orphans and unused assets are off by default: they are housekeeping, and on most sites they would bury the broken reference the digest is for."|t('yarn'),
+                name: 'settings[digestChecks]',
+                options: checkOptions,
+                values: settings.digestChecks,
+                disabled: readOnly,
+                errors: settings.getErrors('digestChecks'),
+            }) }}
+
+            {{ forms.lightswitchField({
+                label: "Check from web requests too"|t('yarn'),
+                instructions: "Best is a cron job running `php craft yarn/digest/send` every 15 minutes. Without one, leave this on: the end of a web request looks at the schedule at most every five minutes and queues the digest when it is due."|t('yarn'),
+                name: 'settings[digestWebTrigger]',
+                on: settings.digestWebTrigger,
+                disabled: readOnly,
+            }) }}
+
+            <hr>
+
             <h2>{{ "Performance"|t('yarn') }}</h2>
 
             {{ forms.textField({
@@ -186,5 +271,9 @@
                 </div>
             {% endif %}
         </form>
+
+        {# A form of its own, after the settings form and never inside it: it works with admin
+           changes off, and it sends what is saved, not what is typed above. #}
+        {% include 'yarn/_partials/digest' with { state: digestState, next: digestNext } %}
     </div>
 {% endblock %}

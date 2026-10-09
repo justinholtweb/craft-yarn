@@ -1,0 +1,69 @@
+{#
+    The findings digest, HTML half. Rendered by helpers/Mailer in control-panel template mode.
+    Inline styles on purpose: this is an email, and mail clients drop <style> blocks and every
+    stylesheet the control panel has.
+#}
+{% set tones = { error: '#cf1124', warning: '#b44d12', notice: '#606d7b' } %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>{{ "Yarn findings digest"|t('yarn') }}</title>
+</head>
+<body style="margin:0;padding:24px;background:#f3f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2933;font-size:15px;line-height:1.5;">
+<div style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:6px;padding:24px;">
+    {% if isTest %}
+        <p style="margin:0 0 16px;padding:8px 12px;background:#fff8e1;border-radius:4px;font-size:13px;">
+            {{ "This is a test. It shows what the next digest would say; the real one will still go out on schedule."|t('yarn') }}
+        </p>
+    {% endif %}
+
+    <h1 style="margin:0 0 4px;font-size:20px;">{{ "Yarn findings for {site}"|t('yarn', { site: siteName }) }}</h1>
+    <p style="margin:0 0 20px;color:#606d7b;font-size:13px;">
+        {% if since %}
+            {{ "New since the last digest, sent {date}."|t('yarn', { date: since|datetime('short') }) }}
+        {% else %}
+            {{ "The first digest, so everything counts as new."|t('yarn') }}
+        {% endif %}
+    </p>
+
+    {% if newCount %}
+        <h2 style="margin:0 0 12px;font-size:16px;">{{ "{count, plural, =1{One new finding} other{# new findings}}"|t('yarn', { count: newCount }) }}</h2>
+        {% for item in items %}
+            <div style="margin:0 0 14px;padding:0 0 14px;border-bottom:1px solid #e3e5e8;">
+                <div style="font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:{{ tones[item.severity] ?? '#606d7b' }};">
+                    {{ item.severity|t('yarn') }} · {{ item.check }}
+                </div>
+                <div style="font-weight:600;margin:2px 0;">
+                    {% if item.url %}<a href="{{ item.url }}" style="color:#1f2933;">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}
+                </div>
+                {% if item.detail %}<div style="color:#3e4c59;font-size:14px;">{{ item.detail }}</div>{% endif %}
+            </div>
+        {% endfor %}
+        {% if more %}
+            <p style="margin:0 0 16px;">{{ "… and {count} more."|t('yarn', { count: more|number }) }}</p>
+        {% endif %}
+    {% else %}
+        <p style="margin:0 0 16px;">{{ "Nothing new since the last digest."|t('yarn') }}</p>
+    {% endif %}
+
+    <p style="margin:16px 0;font-size:14px;">
+        {{ "On the site now: {errors} errors, {warnings} warnings, {notices} notices across the checks this digest reports."|t('yarn', {
+            errors: severities.error|number,
+            warnings: severities.warning|number,
+            notices: severities.notice|number,
+        }) }}
+    </p>
+
+    <p style="margin:0 0 20px;">
+        <a href="{{ findingsUrl }}" style="display:inline-block;padding:8px 14px;background:#e12d39;color:#ffffff;border-radius:4px;text-decoration:none;">{{ "Open the findings"|t('yarn') }}</a>
+    </p>
+
+    <p style="margin:0;color:#7b8794;font-size:12px;">
+        {{ "Yarn can only see what it scans: relation fields, and reference tags or links when those sources are on. Change what this digest reports, or who gets it, in Yarn’s settings:"|t('yarn') }}
+        <a href="{{ settingsUrl }}" style="color:#7b8794;">{{ settingsUrl }}</a>
+    </p>
+</div>
+</body>
+</html>

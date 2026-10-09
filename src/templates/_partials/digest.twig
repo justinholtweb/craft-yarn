@@ -1,0 +1,38 @@
+{#
+    The findings digest's status and the "Send a test digest now" button.
+    Its own form — included after any other form on the page, never inside one.
+#}
+{% if currentUser.can('yarn:sendDigest') %}
+    {% set yarnSettings = craft.app.plugins.getPlugin('yarn').getSettings() %}
+    <hr>
+    <div class="yarn-digest">
+        <h2>{{ "Findings digest"|t('yarn') }}</h2>
+
+        <p class="light">
+            {% if not yarnSettings.digestEnabled %}
+                {{ "The scheduled digest is switched off. A test still shows what it would say."|t('yarn') }}
+            {% elseif state.lastSentAt %}
+                {{ "Last sent {date}."|t('yarn', { date: state.lastSentAt|datetime('short') }) }}
+            {% else %}
+                {{ "Not sent yet."|t('yarn') }}
+            {% endif %}
+            {% if next %}
+                {{ "Next due {date}."|t('yarn', { date: next|datetime('short') }) }}
+            {% endif %}
+        </p>
+
+        <form method="post" accept-charset="UTF-8">
+            {{ csrfInput() }}
+            {{ actionInput('yarn/digest/send-test') }}
+            {{ redirectInput(craft.app.request.pathInfo) }}
+            <button type="submit" class="btn">{{ "Send a test digest now"|t('yarn') }}</button>
+        </form>
+        <p class="light smalltext">
+            {% if yarnSettings.recipientList()|length %}
+                {{ "Goes to the digest’s recipients, marked as a test. It does not count as this period’s digest."|t('yarn') }}
+            {% else %}
+                {{ "No recipients are set, so the test comes to you."|t('yarn') }}
+            {% endif %}
+        </p>
+    </div>
+{% endif %}

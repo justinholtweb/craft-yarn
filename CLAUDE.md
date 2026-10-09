@@ -13,8 +13,10 @@ is about to press Delete.
 ## Tech Stack
 
 - **PHP 8.2+**, **Craft CMS 5.3+**, Yii2, Twig
-- **No database tables, no runtime dependencies, no build step.** Settings live in project config;
-  the graph is assembled in memory and cached in Craft's data cache.
+- **One small table, no runtime dependencies, no build step.** Settings live in project config;
+  the graph is assembled in memory and cached in Craft's data cache. The only table,
+  `yarn_digests`, holds the findings digest's "last sent" marker (schema 1.1.0) — state that must
+  survive a cache clear, or every clear would resend the week's digest.
 - The map is hand-written: a force-directed layout and an SVG renderer in
   `src/web/assets/cp/dist/yarn-cp.js`, about 200 lines of arithmetic. Shipping a graph library to
   draw it would be a megabyte of somebody else's release schedule.
@@ -98,6 +100,65 @@ is called on every element save, delete and restore. A graph serialising to more
 The fingerprint deliberately excludes `maxNodes`, `cacheDuration` and everything under reporting —
 none of those change the graph, only what is done with it.
 
+### Index column and condition rule
+
+`Plugin::registerUsageColumn()` adds a **Used by** table attribute (`yarnUsage`) to `Asset` and
+`Entry`. The first cell rendered reads `$element->elementQueryResult` (Craft 5 sets the whole query
+result on every element) and calls `Relations::usageCounts()` once for the page; the rest read a
+memo. `conditions\IsUsedConditionRule` adds `EXISTS`/`NOT EXISTS (Relations::usedSubquery())` to
+the element query — `andWhere` on an ElementQuery lands in its subquery, where `elements` and
+`elements_sites` are the aliases. Both count relation fields only, with the same draft/revision/
+trash/ignored-field filters as `directUsages()`. Never the graph: a graph build per index load is
+exactly what the performance note on this feature forbade.
+
+## Scheduled digests (reference for the family)
+
+Yarn's findings digest is the **Theme 7 reference** for scheduled email reports. cleanair, csr,
+freelogs, my, trackr, waver and yo copy it. There is no shared package: copy the files, rename the
+namespace, adapt the marked parts.
+
+### Files to copy
+
+| File | Generic? | What to adapt |
+| --- | --- | --- |
+| `src/services/Digest.php` | Everything above "What this plugin reports" | `TABLE`, `HANDLE`, cache key prefixes (`yarn:digest:*`), `LOG_CATEGORY`; below the line rewrite `collect()` (items keyed by a stable id-based key), `key()`, `site()` (drop if not per-site), `subject()`, `variables()` |
+| `src/jobs/SendDigest.php` | Yes | Namespace, description string |
+| `src/helpers/Mailer.php` | Yes | Namespace only — `send($recipients, $subject, 'handle/_emails/x', $vars)` renders `x.twig` + `x.txt.twig` in CP mode, one message per recipient, returns how many were accepted |
+| `src/console/controllers/DigestController.php` | Yes | Messages; keep the exit codes (0 for every non-fault, 78 no recipients, 1 failed) |
+| `src/controllers/DigestController.php` | Yes | Permission constant; base controller (Yarn's requires CP + view) |
+| `src/events/DigestEvent.php` | Yes | Namespace |
+| `src/templates/_emails/digest.twig`, `digest.txt.twig` | No | The content. HTML autoescapes; text uses `autoescape false`. Keep the "test" banner |
+| `src/templates/_partials/digest.twig` | Mostly | Permission name, plugin handle in `getPlugin()` |
+| `Digest::createTable()` + `migrations/Install.php` + `m261009_000000_digests.php` | Yes | Table name; call `createTable()` from the plugin's own Install and a new migration; bump `schemaVersion` |
+| `models/Settings.php` — the `digest*` properties, rules, `recipientList()`, `validateRecipients()`, `'digestChecks'` in the `['']` filter | Yes | `digestChecks`/`digestSite` are Yarn's; replace with whatever selects *what* to report |
+| `Plugin::registerDigestFallback()`, the `digest` component, `PERMISSION_DIGEST` | Yes | — |
+| Settings template "Findings digest" section; the partial included **after** the settings form | Yes | Labels |
+| `tests/integration/digest.php`, `digest-http.php` | Mostly | The "make findings on purpose" part |
+
+### The rules the pattern exists to keep
+
+- **Settings:** enabled, `daily`/`weekly`, ISO weekday 1–7, hour 0–23 in `Craft::$app->getTimeZone()`,
+  recipients as a string (commas/new lines, or `$ENV_VAR` via `App::parseEnv`), send-when-empty.
+  **Never `required`.**
+- **Period key** `Y-m-d` or ISO `o-\WW` (note `o`, not `Y`: 2027-01-01 is `2026-W53`). Due when
+  `now >= dueAt(now)` and the marker's `period` differs — "at or after", so a missed hour still sends
+  later in the same period.
+- **Claim, don't check-then-send:** `UPDATE … SET period = :new WHERE handle = :h AND period = :old`
+  (`period => null` becomes `IS NULL`); exactly one racer gets 1 affected row. On send failure or an
+  event cancel, `release()` puts `:old` back so the next run retries.
+- **"Something new"** = current keys minus the `seen` JSON list stored with the last run. Keys come
+  from ids, never titles. A nothing-new period still records the period (no email unless
+  send-when-empty).
+- **Triggers:** cron → `run()` inline; web fallback → `EVENT_AFTER_REQUEST`, `cache->add()` throttle
+  (5 min), `isDue()`, `cache->add()` per-period queued flag, push `SendDigest` (which calls `run()`).
+  Skip while `isPluginUpdatePending()` (table may not exist yet). **Never `Gc::EVENT_RUN`**, and never
+  trigger GC in tests.
+- **Test send:** POST + CSRF (Craft) + its own permission + 30s per-user cooldown; sends to the
+  recipients or, when none, the current user; **never touches the marker**.
+- **Tests:** mail through `NullTransport` (`getMailer()->setTransport(...)`) and capture with
+  `BaseMailer::EVENT_BEFORE_SEND`; set `isValid = false` there to simulate a failed send. Drive
+  `run($now)` with explicit `DateTimeImmutable`s, not the real clock.
+
 ## Traps found while building this
 
 - **`Elements::EVENT_BEFORE_DELETE_ELEMENT` is not cancellable**, and the cancellable
@@ -168,6 +229,9 @@ No local PHP on this Mac. PHP runs inside the plugin-testing container.
 cd ~/Sites/plugin-testing
 ddev exec php /var/www/craft-yarn/tests/integration/checks.php     # 83 checks
 ddev exec php /var/www/craft-yarn/tests/integration/cp-ui.php      # 15: every screen renders, Craft controls, no inline styles/hex
+ddev exec php /var/www/craft-yarn/tests/integration/digest.php     # digest: settings, schedule, marker, email, fallback, console
+ddev exec php /var/www/craft-yarn/tests/integration/digest-http.php # test-send endpoint: POST/CSRF/permission, no nested forms
+ddev exec php /var/www/craft-yarn/tests/integration/usage.php      # Used by column + Is used rule against real queries
 node --test ~/Sites/craft-yarn/tests/js/map.test.mjs                # 8: map framing, settle refit, selectize wiring (on the Mac)
 ddev exec bash -c 'find /var/www/craft-yarn/src -name "*.php" -print0 | xargs -0 -n1 php -l'
 ddev exec -d /var/www/craft-yarn vendor/bin/phpunit                # 42 unit tests
