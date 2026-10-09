@@ -1,7 +1,6 @@
 # Release Notes for Yarn
 
-## Unreleased
-
+## 5.1.0 — 2026-10-09
 ### Added
 
 - **Findings digest.** Yarn can email what it has found since the last digest — daily or weekly, at an hour you choose, to a list of recipients (or an environment variable) — so a broken reference tag or a live page pointing at a disabled entry is noticed without anybody opening Yarn. It sends once per period, and only when there is something new unless you ask for an “all clear”. Set it up under **Yarn → Settings → Findings digest**.
