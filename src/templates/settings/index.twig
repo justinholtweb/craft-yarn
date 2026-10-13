@@ -58,6 +58,16 @@
 
             {{ forms.selectizeField({
                 multi: true,
+                label: "Fields holding links"|t('yarn'),
+                instructions: "With hard-coded links on, a value that is nothing but a URL on this site — `/media/policy.pdf` typed into a Table cell or a Plain Text field — counts as a link. Leave empty to read every field that way, or pick the fields that hold links to read only those. Links inside `href` and `src` are read everywhere either way."|t('yarn'),
+                name: 'settings[linkFields]',
+                options: linkFieldOptions,
+                values: settings.linkFields,
+                disabled: readOnly,
+            }) }}
+
+            {{ forms.selectizeField({
+                multi: true,
                 label: "Excluded sources"|t('yarn'),
                 instructions: "Sections, volumes and groups to leave out of the graph entirely."|t('yarn'),
                 name: 'settings[excludedGroups]',

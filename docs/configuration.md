@@ -33,7 +33,7 @@ Craft’s relation fields are always read. These are the optional ones:
 | --- | --- | --- |
 | `refTags` | `{entry:42:url}` and friends, anywhere in a field value | Reads every field value on the site |
 | `structure` | Parent-to-child edges in structure sections and category groups | One query |
-| `urls` | `href` and `src` values that resolve to an element | Shares the `refTags` scan |
+| `urls` | `href` and `src` values, and values that are nothing but a URL, that resolve to an element | Shares the `refTags` scan |
 
 `refTags` is on by default. `structure` and `urls` are not: a hierarchy is not a dependency, and
 the link scanner produces the most false positives of anything here.
@@ -59,6 +59,24 @@ only meant to describe what is live.
 Relation fields to skip, by handle. The usual reason is a field that relates everything to
 everything — a “related posts” field filled by an automation — which adds thousands of edges and
 says nothing.
+
+### `linkFields`
+
+Only matters with `urls` on. Besides `href` and `src` in markup, Yarn reads a value that is
+**nothing but a link** — `/media/downloads/policy.pdf` typed into a Table cell, a Plain Text
+“button URL” field, the URL half of a Link field — as a link to whatever page or asset it resolves
+to. It has to be the whole value, one token, and either root-relative or absolute on one of the
+site’s own hosts.
+
+Empty (the default), every field is read that way. List field handles to read only those:
+
+```php
+'linkFields' => ['buttons', 'ctaUrl'],
+```
+
+Worth doing when a Plain Text field elsewhere holds paths that aren’t links: a value that looks
+like a link and resolves to nothing is reported as a broken link. A Table field is in or out as a
+whole; its columns can’t be picked separately.
 
 ### `excludedGroups`
 

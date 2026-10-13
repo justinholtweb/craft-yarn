@@ -126,6 +126,7 @@ class SettingsController extends BaseController
             'kindOptions' => $this->kindOptions(),
             'groupOptions' => $this->groupOptions(),
             'fieldOptions' => $this->fieldOptions(),
+            'linkFieldOptions' => $this->linkFieldOptions(),
             'checkOptions' => $checkOptions,
             'digestSiteOptions' => $siteOptions,
             'weekdayOptions' => $weekdayOptions,
@@ -240,6 +241,29 @@ class SettingsController extends BaseController
 
         foreach (Craft::$app->getFields()->getAllFields() as $field) {
             if (!$field instanceof BaseRelationField) {
+                continue;
+            }
+
+            $options[] = ['label' => "$field->name ($field->handle)", 'value' => $field->handle];
+        }
+
+        usort($options, fn(array $a, array $b) => $a['label'] <=> $b['label']);
+
+        return $options;
+    }
+
+    /**
+     * Every field that can hold a typed-in link: anything that isn't a relation field, whose
+     * values are ids and are read through the relations table instead.
+     *
+     * @return array<int, array{label: string, value: string}>
+     */
+    private function linkFieldOptions(): array
+    {
+        $options = [];
+
+        foreach (Craft::$app->getFields()->getAllFields() as $field) {
+            if ($field instanceof BaseRelationField) {
                 continue;
             }
 

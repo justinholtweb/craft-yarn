@@ -820,6 +820,140 @@ if ($section === null || !$fieldId) {
         return $escaped ?: 'content column did not round-trip at all';
     });
 
+    // ---- bare URLs: a value that is nothing but a link (GitHub #2)
+
+    $targetUri = (string)(new Query())
+        ->select(['uri'])
+        ->from([Table::ELEMENTS_SITES])
+        ->where(['elementId' => $target->id, 'siteId' => $site->id])
+        ->scalar();
+
+    /** A Table field's stored shape: rows of column id => cell. */
+    $table = fn(string $link) => [['col1' => 'Download our policy document', 'col2' => $link]];
+
+    $linksTo = function(int $from, int $to): bool {
+        foreach (freshGraph()->outgoing($from) as $edge) {
+            if ($edge->to === $to && $edge->kind === Edge::KIND_URL) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    check('a root-relative URL in a Table cell becomes an edge', function() use ($source, $target, $site, $targetUri, $table, $linksTo) {
+        if ($targetUri === '' || $targetUri === '__home__') {
+            return true; // the borrowed section has no URLs; nothing to link to
+        }
+
+        configure(['sources' => [Settings::SOURCE_URLS]]);
+        writeContent($source->id, $site->id, ['abc123' => $table('/' . $targetUri)]);
+
+        return $linksTo($source->id, $target->id) ?: 'no link edge for a bare /' . $targetUri;
+    });
+
+    check('a bare URL to an asset finds the asset by its path', function() use ($source, $site, $table, $linksTo) {
+        $asset = (new Query())
+            ->select(['a.id', 'a.filename', 'f.path'])
+            ->from(['a' => Table::ASSETS])
+            ->innerJoin(['f' => Table::VOLUMEFOLDERS], '[[f.id]] = [[a.folderId]]')
+            ->innerJoin(['e' => Table::ELEMENTS], '[[e.id]] = [[a.id]]')
+            ->where(['e.dateDeleted' => null, 'e.draftId' => null, 'e.revisionId' => null])
+            ->one();
+
+        if ($asset === null) {
+            return true; // no assets on this install
+        }
+
+        configure(['sources' => [Settings::SOURCE_URLS]]);
+        // The shape in the issue: a web-root folder in front of the volume's own path.
+        writeContent($source->id, $site->id, ['abc123' => $table('/media/downloads/' . ltrim((string)$asset['path'], '/') . $asset['filename'])]);
+
+        return $linksTo($source->id, (int)$asset['id']) ?: 'asset #' . $asset['id'] . ' not linked';
+    });
+
+    check('prose, external URLs and protocol-relative URLs are not bare links', function() use ($source, $site, $targetUri) {
+        configure(['sources' => [Settings::SOURCE_URLS]]);
+        writeContent($source->id, $site->id, ['abc123' => [
+            'see /' . $targetUri . ' for more',
+            'https://example.com/' . $targetUri,
+            '//cdn.example.com/x.pdf',
+            '#top',
+            'mailto:hello@example.com',
+        ]]);
+
+        foreach (freshGraph()->outgoing($source->id) as $edge) {
+            if ($edge->kind === Edge::KIND_URL) {
+                return 'linked to #' . $edge->to;
+            }
+        }
+
+        foreach (Plugin::getInstance()->findings->run(freshGraph(), [Findings::CHECK_UNRESOLVED]) as $finding) {
+            if ($finding->subject?->id === $source->id) {
+                return 'reported as unresolved: ' . $finding->title;
+            }
+        }
+
+        return true;
+    });
+
+    check('a bare URL that resolves to nothing is reported, like any broken link', function() use ($source, $site, $table) {
+        configure(['sources' => [Settings::SOURCE_URLS]]);
+        writeContent($source->id, $site->id, ['abc123' => $table('/media/downloads/yarn-check-' . bin2hex(random_bytes(4)) . '.pdf')]);
+
+        foreach (Plugin::getInstance()->findings->run(freshGraph(), [Findings::CHECK_UNRESOLVED]) as $finding) {
+            if ($finding->subject?->id === $source->id) {
+                return true;
+            }
+        }
+
+        return 'not reported';
+    });
+
+    check('with link fields named, only those fields are read for bare URLs', function() use ($source, $target, $site, $targetUri, $table, $linksTo) {
+        if ($targetUri === '' || $targetUri === '__home__') {
+            return true;
+        }
+
+        // A real layout element placing a real field: the content column is keyed by its UID.
+        $placed = null;
+        $fields = Craft::$app->getFields();
+
+        foreach ($fields->getAllLayouts() as $layout) {
+            foreach ($layout->getCustomFieldElements() as $element) {
+                $field = $element->fieldUid ? $fields->getFieldByUid($element->fieldUid) : null;
+
+                if ($field !== null && $element->uid !== null) {
+                    $placed = [$element->uid, $field->handle];
+                    break 2;
+                }
+            }
+        }
+
+        if ($placed === null) {
+            return true; // no field layouts with fields on this install
+        }
+
+        [$uid, $handle] = $placed;
+        $link = '/' . $targetUri;
+
+        configure(['sources' => [Settings::SOURCE_URLS], 'linkFields' => [$handle]]);
+
+        writeContent($source->id, $site->id, ['abc123' => $table($link)]);
+        if ($linksTo($source->id, $target->id)) {
+            return 'read a bare URL from a field not in the list';
+        }
+
+        writeContent($source->id, $site->id, ['abc123' => '<a href="' . $link . '">go</a>']);
+        if (!$linksTo($source->id, $target->id)) {
+            return 'an href outside the listed fields was ignored too';
+        }
+
+        writeContent($source->id, $site->id, [$uid => $table($link)]);
+
+        return $linksTo($source->id, $target->id) ?: "a bare URL in the listed field ($handle) was not read";
+    });
+
     configure();
 }
 

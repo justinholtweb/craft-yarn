@@ -43,7 +43,7 @@ map, as lists you can filter, and as a panel on every element edit screen.
 | Relation fields | Craft’s `relations` table — Entries, Assets, Categories, Tags, Users fields | Always on |
 | Reference tags | `{entry:42:url}` and friends, anywhere in a field value | On |
 | Structure hierarchy | Parent-to-child in structure sections and category groups | Off |
-| Hard-coded links | `href` and `src` values that resolve to an element on this site | Off |
+| Hard-coded links | `href` and `src` values, and bare URLs in Table cells and text fields, that resolve to an element on this site | Off |
 
 The last two are off by default because they cost something: the link scanner reads every field
 value on the site. Turn them on when the question is worth the scan.

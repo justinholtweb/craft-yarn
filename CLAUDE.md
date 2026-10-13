@@ -41,7 +41,7 @@ Four built-in sources:
 | --- | --- | --- |
 | `RelationsSource` | `field` | always on |
 | `NestedSource` | `nested` | only when roll-up is **off** |
-| `ContentSource` | `ref`, `url` | `refTags` on, `urls` off |
+| `ContentSource` | `ref`, `url` | `refTags` on, `urls` off (`linkFields` narrows bare-URL reading) |
 | `StructureSource` | `structure` | off |
 
 `ContentSource` is one class for two settings on purpose: both matchers need the same pass over
@@ -234,7 +234,7 @@ No local PHP on this Mac. PHP runs inside the plugin-testing container.
 
 ```sh
 cd ~/Sites/plugin-testing
-ddev exec php /var/www/craft-yarn/tests/integration/checks.php     # 83 checks
+ddev exec php /var/www/craft-yarn/tests/integration/checks.php     # 88 checks
 ddev exec php /var/www/craft-yarn/tests/integration/cp-ui.php      # 15: every screen renders, Craft controls, no inline styles/hex
 ddev exec php /var/www/craft-yarn/tests/integration/digest.php     # digest: settings, schedule, marker, email, fallback, console
 ddev exec php /var/www/craft-yarn/tests/integration/digest-http.php # test-send endpoint: POST/CSRF/permission, no nested forms

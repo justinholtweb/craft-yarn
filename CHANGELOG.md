@@ -1,5 +1,12 @@
 # Release Notes for Yarn
 
+## 5.2.0 — 2026-10-13
+
+### Added
+
+- **Bare links in Table cells and text fields** ([#2](https://github.com/justinholtweb/craft-yarn/issues/2)). With *Hard-coded links in content* on, a value that is nothing but a URL on this site — `/media/downloads/policy.pdf` typed into a Table field's Link column, a Plain Text “button URL” field, the URL in a Link field — now counts as a link to the page or asset it points at, so that asset no longer reads as unused, and deleting it shows up as a broken link. Only whole values are read: a path mentioned in a sentence isn't a link.
+- **Fields holding links** setting (`linkFields`). Leave it empty to read bare URLs in every field, or pick the fields that hold links to read only those — useful when a Plain Text field elsewhere holds paths that aren't links. `href` and `src` in markup are read everywhere either way.
+
 ## 5.1.1 — 2026-10-13
 
 ### Fixed

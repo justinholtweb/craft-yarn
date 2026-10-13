@@ -83,6 +83,17 @@ class Settings extends Model
     public array $ignoredFields = [];
 
     /**
+     * Fields whose values are links, by handle — for the `urls` source.
+     *
+     * A value that is nothing but a URL (`/media/policy.pdf` in a Table cell) is read as a link.
+     * Empty, that applies to every field; name some here and only those are read that way.
+     * `href` and `src` in markup are read everywhere regardless.
+     *
+     * @var string[]
+     */
+    public array $linkFields = [];
+
+    /**
      * Sources to leave out entirely, as group keys: `section:3`, `volume:1`, `categoryGroup:2`.
      *
      * @var string[]
@@ -217,6 +228,7 @@ class Settings extends Model
             'rollUpNested' => Craft::t('yarn', 'Roll up nested elements'),
             'includeDisabled' => Craft::t('yarn', 'Include disabled elements'),
             'ignoredFields' => Craft::t('yarn', 'Ignored fields'),
+            'linkFields' => Craft::t('yarn', 'Fields holding links'),
             'excludedGroups' => Craft::t('yarn', 'Excluded sources'),
             'cacheDuration' => Craft::t('yarn', 'Cache duration'),
             'maxNodes' => Craft::t('yarn', 'Map node limit'),
@@ -352,6 +364,7 @@ class Settings extends Model
             $this->rollUpNested,
             $this->includeDisabled,
             $this->ignoredFields,
+            $this->linkFields,
             $this->excludedGroups,
         ];
 
@@ -375,7 +388,7 @@ class Settings extends Model
      */
     private function normalize(array $values): array
     {
-        foreach (['ignoredFields', 'excludedGroups'] as $key) {
+        foreach (['ignoredFields', 'linkFields', 'excludedGroups'] as $key) {
             if (isset($values[$key])) {
                 $values[$key] = self::flatten($values[$key]);
             }

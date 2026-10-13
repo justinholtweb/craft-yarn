@@ -62,6 +62,9 @@ class ContentSource extends BaseEdgeSource
     /** @var string[]|null Every site's base URL host, for telling internal links from external. */
     private ?array $internalHosts = null;
 
+    /** @var array<string, string>|null Field layout element UID => field handle. */
+    private ?array $fieldHandles = null;
+
     /** @var array<string, string|null> Ref handle => element class, memoized. */
     private array $refHandles = [];
 
@@ -131,7 +134,7 @@ class ContentSource extends BaseEdgeSource
         foreach ($rows as $row) {
             $elementId = (int)$row['elementId'];
 
-            foreach ($this->strings($row['content']) as $value) {
+            foreach ($this->strings($row['content']) as [$layoutElementUid, $value]) {
                 if ($this->wantsRefTags()) {
                     foreach ($this->matchRefTags($elementId, $value) as $hit) {
                         $pending[] = $hit;
@@ -147,6 +150,14 @@ class ContentSource extends BaseEdgeSource
                 if ($this->wantsUrls()) {
                     foreach ($this->matchUrls($elementId, $value) as $hit) {
                         $pending[] = $hit;
+                    }
+
+                    if ($this->readsBareUrls($layoutElementUid)) {
+                        $hit = $this->matchBareUrl($elementId, $value);
+
+                        if ($hit !== null) {
+                            $pending[] = $hit;
+                        }
                     }
                 }
             }
@@ -200,7 +211,11 @@ class ContentSource extends BaseEdgeSource
      * matching there beats matching the raw JSON: `json_encode` escapes `/` as `\/`, so a regex
      * for `href="/news/x"` written against the raw column silently never matches anything.
      *
-     * @return iterable<string>
+     * Each string comes with the UID of the field layout element it was stored under — the
+     * column's top-level key — so a matcher can tell which field it is reading. Null when the
+     * column isn't keyed that way.
+     *
+     * @return iterable<array{0: ?string, 1: string}>
      */
     private function strings(mixed $content): iterable
     {
@@ -219,7 +234,7 @@ class ContentSource extends BaseEdgeSource
         }
 
         if (is_string($content)) {
-            yield $content;
+            yield [null, $content];
             return;
         }
 
@@ -227,21 +242,90 @@ class ContentSource extends BaseEdgeSource
             return;
         }
 
-        $stack = [$content];
+        foreach ($content as $key => $field) {
+            $uid = is_string($key) ? $key : null;
 
-        while ($stack !== []) {
-            $current = array_pop($stack);
+            if (is_string($field)) {
+                if ($field !== '') {
+                    yield [$uid, $field];
+                }
+                continue;
+            }
 
-            foreach ($current as $value) {
-                if (is_string($value)) {
-                    if ($value !== '') {
-                        yield $value;
+            if (!is_array($field)) {
+                continue;
+            }
+
+            $stack = [$field];
+
+            while ($stack !== []) {
+                $current = array_pop($stack);
+
+                foreach ($current as $value) {
+                    if (is_string($value)) {
+                        if ($value !== '') {
+                            yield [$uid, $value];
+                        }
+                    } elseif (is_array($value)) {
+                        $stack[] = $value;
                     }
-                } elseif (is_array($value)) {
-                    $stack[] = $value;
                 }
             }
         }
+    }
+
+    /**
+     * Whether a value stored under this layout element is read as a bare link.
+     *
+     * Every field, unless the settings name some — then only those. A bare `/news/one` in a
+     * Plain Text field nobody meant as a link would otherwise be reported as a broken link the
+     * moment the page it happens to resemble goes away.
+     */
+    private function readsBareUrls(?string $layoutElementUid): bool
+    {
+        $handles = $this->context->settings->linkFields;
+
+        if ($handles === []) {
+            return true;
+        }
+
+        if ($layoutElementUid === null) {
+            return false;
+        }
+
+        $handle = $this->fieldHandles()[$layoutElementUid] ?? null;
+
+        return $handle !== null && in_array($handle, $handles, true);
+    }
+
+    /**
+     * Layout element UID => the handle of the field it places.
+     *
+     * The global handle, not the layout's override: that is what the settings store, and it is
+     * the same field however a layout chose to label it.
+     *
+     * @return array<string, string>
+     */
+    private function fieldHandles(): array
+    {
+        if ($this->fieldHandles !== null) {
+            return $this->fieldHandles;
+        }
+
+        $this->fieldHandles = [];
+        $fields = Craft::$app->getFields();
+
+        foreach ($fields->getAllLayouts() as $layout) {
+            foreach ($layout->getCustomFieldElements() as $element) {
+                $field = $fields->getFieldByUid($element->fieldUid);
+
+                if ($element->uid !== null && $field?->handle !== null) {
+                    $this->fieldHandles[$element->uid] = $field->handle;
+                }
+            }
+        }
+
+        return $this->fieldHandles;
     }
 
     /**
@@ -356,6 +440,46 @@ class ContentSource extends BaseEdgeSource
         }
 
         return $hits;
+    }
+
+    /**
+     * A value that is nothing but a link: `/media/downloads/policy.pdf` typed into a Table cell,
+     * a Plain Text "button URL" field, the URL half of a Link field. No markup around it, so
+     * {@see self::URL_PATTERN} never sees it (GitHub #2).
+     *
+     * Deliberately narrow — the whole value, one token, root-relative or absolute on one of the
+     * site's own hosts — because anything looser starts reading prose as links.
+     *
+     * @return array{from: int, to: int|null, uid: string|null, kind: string, label: string, raw: string}|null
+     */
+    private function matchBareUrl(int $elementId, string $value): ?array
+    {
+        $url = trim($value);
+
+        if ($url === '' || strlen($url) > 2048 || preg_match('/[\s<>"\']/', $url) === 1) {
+            return null;
+        }
+
+        $rootRelative = $url[0] === '/' && !str_starts_with($url, '//');
+
+        if (!$rootRelative && preg_match('/^https?:\/\//i', $url) !== 1) {
+            return null;
+        }
+
+        $path = $this->internalPath($url);
+
+        if ($path === null) {
+            return null;
+        }
+
+        return [
+            'from' => $elementId,
+            'to' => $this->uriMap()[$path] ?? $this->assetFor($path),
+            'uid' => null,
+            'kind' => Edge::KIND_URL,
+            'label' => Craft::t('yarn', 'Link'),
+            'raw' => $url,
+        ];
     }
 
     /**
