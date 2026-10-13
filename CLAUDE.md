@@ -194,6 +194,13 @@ namespace, adapt the marked parts.
   framed a layout still spreading, so outer nodes drifted off the canvas — and it measured dots,
   not labels. `fit()` now counts `node.labelWidth` (measured once in `draw()`), keeps clear of
   `.yarn-map-controls`, and `start()` refits on settle unless `userMoved` (set by pan, wheel, drag).
+- **A spring applied in full to both ends blows up around hubs** (GitHub #1, after 5.1.0). A node
+  with a hundred links takes a hundred pulls a tick, overshoots further every step, and reaches 1e90
+  within a few hundred ticks. SVG transforms are single-precision, so the browser rejects them
+  ("Expected number") and draws every node at the origin: the pile of labels in the top-left that
+  this test site, with 193 relations, never showed. `tick()` splits each pull by degree (d3's bias)
+  and caps speed at `YarnMap.MAX_SPEED`. Reproduce map bugs with the reporter's *density*, not just
+  their node count.
 - **Nothing floats over the drawing.** The legend and status live in `.yarn-map-bar` above
   `.yarn-map-canvas`; an overlay hides whatever nodes the layout puts under it.
 - **Craft's multi-select (selectize) announces changes with jQuery's `trigger('change')`**, which
@@ -232,7 +239,7 @@ ddev exec php /var/www/craft-yarn/tests/integration/cp-ui.php      # 15: every s
 ddev exec php /var/www/craft-yarn/tests/integration/digest.php     # digest: settings, schedule, marker, email, fallback, console
 ddev exec php /var/www/craft-yarn/tests/integration/digest-http.php # test-send endpoint: POST/CSRF/permission, no nested forms
 ddev exec php /var/www/craft-yarn/tests/integration/usage.php      # Used by column + Is used rule against real queries
-node --test ~/Sites/craft-yarn/tests/js/map.test.mjs                # 8: map framing, settle refit, selectize wiring (on the Mac)
+node --test ~/Sites/craft-yarn/tests/js/map.test.mjs                # 9: map framing, settle refit, hub stability, selectize wiring (on the Mac)
 ddev exec bash -c 'find /var/www/craft-yarn/src -name "*.php" -print0 | xargs -0 -n1 php -l'
 ddev exec -d /var/www/craft-yarn vendor/bin/phpunit                # 42 unit tests
 ddev exec -d /var/www/craft-yarn vendor/bin/phpstan analyse --memory-limit=1G   # level 5

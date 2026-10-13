@@ -172,6 +172,15 @@
             return link.source && link.target;
         });
 
+        // How many threads each node has, so a spring can pull a hub less than it pulls a leaf.
+        this.nodes.forEach(function (node) {
+            node.degree = 0;
+        });
+        this.links.forEach(function (link) {
+            link.source.degree++;
+            link.target.degree++;
+        });
+
         this.draw();
         this.centre();
         this.alpha = 1;
@@ -280,6 +289,7 @@
     // ------------------------------------------------------------ simulation
 
     YarnMap.MAX_TICKS = 700;
+    YarnMap.MAX_SPEED = 60;
 
     YarnMap.prototype.start = function () {
         if (this.running) {
@@ -369,10 +379,20 @@
             var px = (sx / dist) * pull;
             var py = (sy / dist) * pull;
 
-            link.source.vx += px;
-            link.source.vy += py;
-            link.target.vx -= px;
-            link.target.vy -= py;
+            // Each end moves in inverse proportion to how many threads it has. Applied in full to
+            // both ends, a hub with a hundred links is pulled by a hundred springs at once, every
+            // step overshoots further than the last, and within a few hundred ticks its position
+            // is 1e90 — past what an SVG transform can hold, so the browser drops every transform
+            // and draws all 400 elements piled up in the top-left corner (GitHub #1). Two ends of
+            // equal degree still share the pull equally, as before.
+            var sourceDegree = link.source.degree || 1;
+            var targetDegree = link.target.degree || 1;
+            var bias = sourceDegree / (sourceDegree + targetDegree);
+
+            link.source.vx += px * 2 * (1 - bias);
+            link.source.vy += py * 2 * (1 - bias);
+            link.target.vx -= px * 2 * bias;
+            link.target.vy -= py * 2 * bias;
         }
 
         for (i = 0; i < count; i++) {
@@ -389,6 +409,15 @@
 
             node.vx *= 0.82;
             node.vy *= 0.82;
+
+            // A backstop, not the mechanism: whatever else goes wrong, no node jumps further than
+            // this in one step, so a bad tick can't send one off to infinity.
+            var speed = Math.sqrt(node.vx * node.vx + node.vy * node.vy);
+            if (speed > YarnMap.MAX_SPEED) {
+                node.vx *= YarnMap.MAX_SPEED / speed;
+                node.vy *= YarnMap.MAX_SPEED / speed;
+            }
+
             node.x += node.vx * alpha;
             node.y += node.vy * alpha;
         }

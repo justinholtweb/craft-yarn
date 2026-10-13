@@ -119,6 +119,45 @@ test('fitting ignores kinds switched off in the legend', () => {
     assert.ok(map.view.k > 0.5, `a hidden outlier shrank the view to ${map.view.k}`);
 });
 
+test('a graph with busy hubs stays on the canvas instead of collapsing into the corner', () => {
+    // The shape that broke it (GitHub #1): 400 elements, 1,121 relations, a few hubs holding most
+    // of them. Every spring pulled both of its ends in full, so a hub took hundreds of pulls a
+    // step, overshot further every tick, and reached 1e90 — beyond what an SVG transform holds,
+    // so the browser dropped them all and drew every node on top of the next in the top-left.
+    const { YarnMap } = load();
+    const raw = [];
+    for (let i = 0; i < 400; i++) {
+        raw.push({ id: i + 1, label: `Node ${i + 1}`, kind: 'entry', inCount: 0, outCount: 0 });
+    }
+    let seed = 1;
+    const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const edges = [];
+    for (let e = 0; e < 1121; e++) {
+        const from = e % 3 === 2 ? Math.floor(random() * 400) + 1 : (e % 3) + 1;
+        let to = Math.floor(random() * 400) + 1;
+        if (to === from) {
+            to = (to % 400) + 1;
+        }
+        edges.push({ from, to, kind: 'field' });
+    }
+
+    const map = stubMap(YarnMap, []);
+    map.draw = () => {};
+    map.centre = () => {};
+    map.start = () => {};
+    map.say = () => {};
+    map.absorb({ nodes: raw, edges, total: 400, truncated: false });
+
+    for (let t = 0; t <= YarnMap.MAX_TICKS; t++) {
+        map.tick();
+    }
+
+    for (const n of map.nodes) {
+        assert.ok(Number.isFinite(n.x) && Number.isFinite(n.y), `node ${n.id} went to ${n.x},${n.y}`);
+        assert.ok(Math.abs(n.x) < 1e5 && Math.abs(n.y) < 1e5, `node ${n.id} flung to ${n.x.toFixed(0)},${n.y.toFixed(0)}`);
+    }
+});
+
 test('when the layout settles the view is fitted again — unless the reader has moved it', () => {
     for (const userMoved of [false, true]) {
         const { YarnMap, frames } = load();

@@ -1,5 +1,11 @@
 # Release Notes for Yarn
 
+## 5.1.1 — 2026-10-13
+
+### Fixed
+
+- **The map no longer piles every element into its top-left corner on a busy site** ([#1](https://github.com/justinholtweb/craft-yarn/issues/1)). On a graph where a few elements hold hundreds of relations between them, the layout pulled each of those hubs by every one of its threads at once, overshot further on every step, and within a second or two had flung them past what the browser can draw — at which point every element was drawn on top of the next in the corner, labels cut off by the edge of the canvas. Each thread now pulls its two ends in proportion to how busy they are, and no element can jump more than a short distance in one step.
+
 ## 5.1.0 — 2026-10-09
 ### Added
 
