@@ -35,6 +35,10 @@ map, as lists you can filter, and as a panel on every element edit screen.
 - **A findings digest** by email, daily or weekly, listing only what is new since the last one.
 - **Console commands** for all of it, with an exit code you can fail a deploy on.
 - **Export** to JSON, CSV, Graphviz DOT or Mermaid.
+- **GraphQL queries** for relations, findings, unused assets and paths, opt-in per schema and
+  masked by the schema's scope.
+- **MCP tools** on Craft 5.12+'s built-in MCP server, so an AI agent can ask what uses an element
+  before it deletes it. Read-only, permission-checked, masked like the control panel.
 
 ## Where relations come from
 
@@ -69,8 +73,9 @@ stores references in its own table — through `RegisterEdgeSourcesEvent`. See
 {% endfor %}
 ```
 
-`usedBy()` and `uses()` read the relations table directly and are cheap enough for a front-end
-page. `craft.yarn.graph()` and `craft.yarn.findings()` assemble the whole site and are not —
+`usedBy()` and `uses()` never build the graph — relation fields from the relations table, plus
+reference tags and links from a cached search of the rows that mention the element — and are cheap
+enough for a front-end page. `craft.yarn.graph()` and `craft.yarn.findings()` assemble the whole site and are not —
 those belong in a report.
 
 ## Console

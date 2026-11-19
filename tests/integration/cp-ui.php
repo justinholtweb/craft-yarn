@@ -115,6 +115,25 @@ check('every <select> is one of Craft’s (inside .select or .selectize), not a 
     return $found === [] ?: implode(', ', $found);
 });
 
+check('settings offer a sidebar name and Craft’s icon picker for the sidebar icon', function() use ($pages) {
+    $html = $pages['settings']['html'];
+
+    return (str_contains($html, 'name="settings[navLabel]"') && str_contains($html, 'icon-picker') && str_contains($html, 'settings[navIcon]'))
+        ?: 'missing';
+});
+
+check('Craft’s GraphQL schema editor offers the Yarn component', function() use ($http) {
+    if (!Craft::$app->getConfig()->getGeneral()->enableGql) {
+        return true; // GraphQL is switched off on this install
+    }
+
+    $response = $http->get('index.php?p=admin/graphql/schemas/new');
+    $html = (string)$response->getBody();
+
+    return ($response->getStatusCode() === 200 && str_contains($html, 'yarn:read') && str_contains($html, 'Query relations, findings and unused assets'))
+        ?: 'status ' . $response->getStatusCode() . ', component missing';
+});
+
 echo "\nThe map\n";
 
 $map = yarnContent($pages['map']['html']);

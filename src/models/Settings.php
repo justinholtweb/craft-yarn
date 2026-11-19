@@ -146,6 +146,17 @@ class Settings extends Model
 
     // ------------------------------------------------------------------------- in the wider CP
 
+    /** What Yarn is called in the control panel's main navigation. Empty for the plugin's name. */
+    public string $navLabel = '';
+
+    /**
+     * The main navigation icon, as a Craft icon name (`diagram-project`). Empty for Yarn's own.
+     *
+     * A name, not a path: it comes from the settings screen's icon picker, and a path typed into a
+     * text box would be a file read from wherever somebody pointed it.
+     */
+    public string $navIcon = '';
+
     /** Add a Relations panel to the sidebar of every element edit screen. */
     public bool $showElementPanel = true;
 
@@ -236,6 +247,8 @@ class Settings extends Model
             'orphanKinds' => Craft::t('yarn', 'Report orphans for'),
             'orphansIgnoreRoutable' => Craft::t('yarn', 'Ignore elements with their own URL'),
             'cycleLimit' => Craft::t('yarn', 'Cycle limit'),
+            'navLabel' => Craft::t('yarn', 'Sidebar name'),
+            'navIcon' => Craft::t('yarn', 'Sidebar icon'),
             'showElementPanel' => Craft::t('yarn', 'Show the Relations panel'),
             'deleteGuard' => Craft::t('yarn', 'Record deletions of elements in use'),
             'deleteGuardKinds' => Craft::t('yarn', 'Watch these element kinds'),
@@ -266,6 +279,9 @@ class Settings extends Model
             [['scanBatchSize'], 'integer', 'min' => 50, 'max' => 5000],
             [['cycleLimit'], 'integer', 'min' => 1, 'max' => 500],
             [['deleteGuard'], 'in', 'range' => [self::GUARD_OFF, self::GUARD_LOG]],
+            [['navLabel'], 'trim'],
+            [['navLabel'], 'string', 'max' => 40],
+            [['navIcon'], 'match', 'pattern' => '/^[a-z0-9-]*$/'],
             [['logLevel'], 'in', 'range' => ['debug', 'info', 'warning', 'error']],
             [['sources'], 'validateSources', 'skipOnEmpty' => false],
             [['orphanKinds', 'deleteGuardKinds'], 'validateKinds', 'skipOnEmpty' => false],

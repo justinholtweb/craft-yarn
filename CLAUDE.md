@@ -66,7 +66,18 @@ level at a time, querying only the ids still in play.
 
 The second exists because the sidebar panel renders on **every** element edit screen on the site.
 Building a whole-site graph to answer "is this in use" would put seconds on the load of a page
-nobody opened Yarn to look at. It counts relation fields only; the panel links to the full picture.
+nobody opened Yarn to look at.
+
+`Relations::usages()`/`uses()` = `direct*()` + `contentUsages()`/`contentUses()` — reference tags
+and hard-coded links without the graph (GitHub #2 follow-up, 5.3.0: a Table-cell link showed on the
+element screen and not in the panel). `contentUsages()` `LIKE`-prefilters `elements_sites.content`
+on needles (`:ID}`, `:ID:`, `:ID@`, `:ID|`, `:ID `, the UID, the asset filename, the URI's last
+segment — never a `/`, which JSON may spell `\/`), then runs the real `ContentSource` over the hits
+with `lazyLookups = true` (per-path queries instead of the whole-site URI/asset maps) and a
+`BuildContext(..., wholeSite: false)` + `loadOwnershipFor()`. The prefilter may be loose; the
+matcher makes it right. Cached on fingerprint + `Graph::stamp()`. Homepage incoming links are not
+found (`/` has no needle). The panel, the Used by column, `craft.yarn.*` and the delete log use
+these; the **Is used rule stays relation-only** (it must match its own `EXISTS` subquery).
 
 ### Adjacency stores edge indexes, not node ids
 
@@ -107,9 +118,32 @@ none of those change the graph, only what is done with it.
 result on every element) and calls `Relations::usageCounts()` once for the page; the rest read a
 memo. `conditions\IsUsedConditionRule` adds `EXISTS`/`NOT EXISTS (Relations::usedSubquery())` to
 the element query — `andWhere` on an ElementQuery lands in its subquery, where `elements` and
-`elements_sites` are the aliases. Both count relation fields only, with the same draft/revision/
+`elements_sites` are the aliases. The rule counts relation fields only; the column adds
+`contentUsages()` for the page's ids (one prefiltered scan). Both use the same draft/revision/
 trash/ignored-field filters as `directUsages()`. Never the graph: a graph build per index load is
 exactly what the performance note on this feature forbade.
+
+## Machine API: MCP and GraphQL
+
+`services\Api` holds the answers (`elementRelations`, `findings`, `unusedAssets`, `path`) as plain
+arrays, plus site resolution (`siteForUser`, `siteForSchema`). It never checks access: callers hand
+it an already-masked graph. It throws `errors\ApiException`, which MCP turns into
+`ToolCallException` and GraphQL into `UserError`, message unchanged. One shape for both: relation
+groups are `{field, kind, kindLabel, elements: [{node, via}]}`, nodes are `Node::toArray()`.
+
+- **MCP (Craft 5.12+)** — `mcp\YarnTools`: four read-only `#[McpTool]`s, each
+  `#[RequiresPermission(PERMISSION_VIEW)]`, masked by `Graph::forUser()`. Registered from
+  `Plugin::registerMcp()` on `craft\services\Mcp`'s `registerCapabilityTypes`, guarded by
+  `class_exists`, so below 5.12 the class is never loaded.
+- **GraphQL** — `gql\Queries` + `gql\Types` (ObjectTypes via `GqlEntityRegistry`, default
+  array-key resolvers). Schema component `yarn:read`, off by default. Its `authenticated` callback
+  is honoured on 5.12+ and ignored before. Masked by `Graph::forSchema()`, which maps scope pairs
+  (`sections`/`volumes`/`categorygroups`/`taggroups`/`globalsets`/`usergroups`) to group keys. It
+  is stricter than `forUser`: `type:*` and tags are masked unless readable, because a schema can be
+  public. If `$schema->user` is set (5.12 OAuth), it delegates to `forUser`.
+- The test site and the dev vendor are on **Craft 5.12.1** (upgraded 2026-11-19; ddev snapshot
+  `pre-craft-5.12-202611191137`; `verbb/auth` had to go 2.0.37 → 2.0.60 for `lcobucci/jwt` 5).
+  PHPStan sees the real MCP classes, so there's no ignore list.
 
 ## Scheduled digests (reference for the family)
 
@@ -161,6 +195,17 @@ namespace, adapt the marked parts.
 
 ## Traps found while building this
 
+- **One GraphQL schema per process.** After `Gql::flushCaches()`, building a second schema in the
+  same PHP process fails with "multiple types named QueryArgument". `tests/integration/gql.php`
+  therefore runs each query through `gql-run.php` in its own process.
+- **Craft's MCP `tools/list` pages at 50.** Yarn's tools are on page 2 of an admin's list, so follow
+  `nextCursor` before concluding a tool isn't registered.
+- **`php craft mcp/serve` is a separate process with the *stored* settings.** In-memory
+  `configure()` overrides don't reach it.
+- **`LIKE` on `elements_sites.content` needs `CAST(... AS TEXT)` on Postgres** (json has no `~~`
+  operator); MySQL compares the JSON's text form as-is.
+- **In Craft 5 a draft shares its canonical's nested entries through `elements_owners`**, so an
+  owner walk must skip draft/revision owners or a block rolls up to a draft.
 - **`Elements::EVENT_BEFORE_DELETE_ELEMENT` is not cancellable**, and the cancellable
   `Element::EVENT_BEFORE_DELETE` fires *after* Matrix has already deleted the element's nested
   entries — so vetoing there keeps the element row and destroys its content. There is no safe
@@ -235,10 +280,12 @@ No local PHP on this Mac. PHP runs inside the plugin-testing container.
 ```sh
 cd ~/Sites/plugin-testing
 ddev exec php /var/www/craft-yarn/tests/integration/checks.php     # 88 checks
-ddev exec php /var/www/craft-yarn/tests/integration/cp-ui.php      # 15: every screen renders, Craft controls, no inline styles/hex
+ddev exec php /var/www/craft-yarn/tests/integration/cp-ui.php      # 17: every screen renders, Craft controls, no inline styles/hex
 ddev exec php /var/www/craft-yarn/tests/integration/digest.php     # digest: settings, schedule, marker, email, fallback, console
 ddev exec php /var/www/craft-yarn/tests/integration/digest-http.php # test-send endpoint: POST/CSRF/permission, no nested forms
 ddev exec php /var/www/craft-yarn/tests/integration/usage.php      # Used by column + Is used rule against real queries
+ddev exec php /var/www/craft-yarn/tests/integration/panel.php      # 23: panel counts content links (#2), drafts, roll-up, MCP tools (direct + stdio server), nav settings
+ddev exec php /var/www/craft-yarn/tests/integration/gql.php        # 12: schema component, every query, masking by scope (one process per query)
 node --test ~/Sites/craft-yarn/tests/js/map.test.mjs                # 9: map framing, settle refit, hub stability, selectize wiring (on the Mac)
 ddev exec bash -c 'find /var/www/craft-yarn/src -name "*.php" -print0 | xargs -0 -n1 php -l'
 ddev exec -d /var/www/craft-yarn vendor/bin/phpunit                # 42 unit tests

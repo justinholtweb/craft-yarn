@@ -45,8 +45,9 @@ class IsUsedConditionRule extends BaseLightswitchConditionRule implements Elemen
 
     public function matchElement(ElementInterface $element): bool
     {
+        // Relation fields only, to agree with modifyQuery() — see Relations::usedSubquery().
         $used = $element->id !== null
-            && Plugin::getInstance()->relations->countUsages($element->id, $element->siteId) > 0;
+            && Plugin::getInstance()->relations->directUsages($element->id, $element->siteId) !== [];
 
         return $this->matchValue($used);
     }

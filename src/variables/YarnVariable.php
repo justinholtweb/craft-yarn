@@ -33,7 +33,7 @@ class YarnVariable
     {
         [$id, $siteId] = $this->resolve($element, $siteId);
 
-        return $this->elements(Plugin::getInstance()->relations->directUses($id, $siteId), $siteId);
+        return $this->elements(Plugin::getInstance()->relations->uses($id, $siteId), $siteId);
     }
 
     /**
@@ -45,7 +45,7 @@ class YarnVariable
     {
         [$id, $siteId] = $this->resolve($element, $siteId);
 
-        return $this->elements(Plugin::getInstance()->relations->directUsages($id, $siteId), $siteId);
+        return $this->elements(Plugin::getInstance()->relations->usages($id, $siteId), $siteId);
     }
 
     public function usageCount(ElementInterface|int $element, ?int $siteId = null): int

@@ -10,6 +10,7 @@ use justinholtweb\yarn\models\Edge;
 use justinholtweb\yarn\models\Settings;
 use justinholtweb\yarn\Plugin;
 use Throwable;
+use yii\db\Expression;
 
 /**
  * Relations that live inside field *values* rather than in the relations table: reference tags,
@@ -68,6 +69,22 @@ class ContentSource extends BaseEdgeSource
     /** @var array<string, string|null> Ref handle => element class, memoized. */
     private array $refHandles = [];
 
+    /**
+     * Resolve each link path with its own small query instead of loading every URI and every
+     * asset on the site first.
+     *
+     * Off for a graph build, which meets thousands of links and is better served by the two
+     * maps. On for the sidebar panel and the index column, which scan a handful of rows and
+     * would otherwise pay for the whole site's URI table to read three links.
+     */
+    public bool $lazyLookups = false;
+
+    /** @var array<string, int|null> Path => element id, in lazy mode. */
+    private array $lazyUris = [];
+
+    /** @var array<string, array<int, string>> Lowercased filename => [asset id => volume path], in lazy mode. */
+    private array $lazyAssets = [];
+
     public static function id(): string
     {
         return 'content';
@@ -113,6 +130,18 @@ class ContentSource extends BaseEdgeSource
         foreach ($query->batch($batchSize) as $rows) {
             yield from $this->scanBatch($rows);
         }
+    }
+
+    /**
+     * Edges out of the given `elements_sites` rows — the same matching a graph build does, for
+     * callers that chose the rows themselves.
+     *
+     * @param array<int, array{elementId: mixed, content: mixed}> $rows
+     * @return iterable<Edge>
+     */
+    public function scan(array $rows): iterable
+    {
+        return $this->scanBatch($rows);
     }
 
     /**
@@ -427,7 +456,7 @@ class ContentSource extends BaseEdgeSource
                 continue;
             }
 
-            $target = $this->uriMap()[$path] ?? $this->assetFor($path);
+            $target = $this->resolvePath($path);
 
             $hits[] = [
                 'from' => $elementId,
@@ -474,7 +503,7 @@ class ContentSource extends BaseEdgeSource
 
         return [
             'from' => $elementId,
-            'to' => $this->uriMap()[$path] ?? $this->assetFor($path),
+            'to' => $this->resolvePath($path),
             'uid' => null,
             'kind' => Edge::KIND_URL,
             'label' => Craft::t('yarn', 'Link'),
@@ -514,6 +543,39 @@ class ContentSource extends BaseEdgeSource
         return trim($path, '/');
     }
 
+    private function resolvePath(string $path): ?int
+    {
+        if (!$this->lazyLookups) {
+            return $this->uriMap()[$path] ?? $this->assetFor($path);
+        }
+
+        if (!array_key_exists($path, $this->lazyUris)) {
+            $id = $this->liveSiteRows()
+                ->select(['es.elementId'])
+                ->andWhere(['es.uri' => $path === '' ? '__home__' : $path])
+                ->scalar();
+
+            $this->lazyUris[$path] = $id !== false && $id !== null ? (int)$id : null;
+        }
+
+        return $this->lazyUris[$path] ?? $this->assetFor($path);
+    }
+
+    /** `elements_sites` joined to `elements`, for this site, live elements only. */
+    private function liveSiteRows(): Query
+    {
+        return (new Query())
+            ->from(['es' => Table::ELEMENTS_SITES])
+            ->innerJoin(['e' => Table::ELEMENTS], '[[e.id]] = [[es.elementId]]')
+            ->where([
+                'es.siteId' => $this->context->siteId,
+                'e.draftId' => null,
+                'e.revisionId' => null,
+                'e.archived' => false,
+                'e.dateDeleted' => null,
+            ]);
+    }
+
     /** @return array<string, int> */
     private function uriMap(): array
     {
@@ -523,17 +585,8 @@ class ContentSource extends BaseEdgeSource
 
         $this->uriMap = [];
 
-        $rows = (new Query())
+        $rows = $this->liveSiteRows()
             ->select(['es.elementId', 'es.uri'])
-            ->from(['es' => Table::ELEMENTS_SITES])
-            ->innerJoin(['e' => Table::ELEMENTS], '[[e.id]] = [[es.elementId]]')
-            ->where([
-                'es.siteId' => $this->context->siteId,
-                'e.draftId' => null,
-                'e.revisionId' => null,
-                'e.archived' => false,
-                'e.dateDeleted' => null,
-            ])
             ->andWhere(['not', ['es.uri' => null]])
             ->all();
 
@@ -562,7 +615,7 @@ class ContentSource extends BaseEdgeSource
             return null;
         }
 
-        $candidates = $this->assetMap()[$filename] ?? null;
+        $candidates = $this->assetCandidates($filename);
 
         if ($candidates === null) {
             return null;
@@ -590,6 +643,24 @@ class ContentSource extends BaseEdgeSource
         return $best;
     }
 
+    /** @return array<int, string>|null */
+    private function assetCandidates(string $filename): ?array
+    {
+        if (!$this->lazyLookups) {
+            return $this->assetMap()[$filename] ?? null;
+        }
+
+        if (!array_key_exists($filename, $this->lazyAssets)) {
+            $rows = $this->assetQuery()
+                ->andWhere(new Expression('LOWER([[a.filename]]) = :yarnFilename', [':yarnFilename' => $filename]))
+                ->all();
+
+            $this->lazyAssets[$filename] = $this->assetPaths($rows)[$filename] ?? [];
+        }
+
+        return $this->lazyAssets[$filename] !== [] ? $this->lazyAssets[$filename] : null;
+    }
+
     /** @return array<string, array<int, string>> */
     private function assetMap(): array
     {
@@ -597,9 +668,12 @@ class ContentSource extends BaseEdgeSource
             return $this->assetMap;
         }
 
-        $this->assetMap = [];
+        return $this->assetMap = $this->assetPaths($this->assetQuery()->all());
+    }
 
-        $rows = (new Query())
+    private function assetQuery(): Query
+    {
+        return (new Query())
             ->select(['a.id', 'a.filename', 'f.path'])
             ->from(['a' => Table::ASSETS])
             ->innerJoin(['f' => Table::VOLUMEFOLDERS], '[[f.id]] = [[a.folderId]]')
@@ -609,18 +683,24 @@ class ContentSource extends BaseEdgeSource
                 'e.revisionId' => null,
                 'e.archived' => false,
                 'e.dateDeleted' => null,
-            ])
-            ->all();
+            ]);
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<string, array<int, string>>
+     */
+    private function assetPaths(array $rows): array
+    {
+        $map = [];
 
         foreach ($rows as $row) {
             $filename = (string)$row['filename'];
-            $key = strtolower($filename);
-            $this->assetMap[$key][(int)$row['id']] = trim((string)$row['path'], '/') !== ''
-                ? trim((string)$row['path'], '/') . '/' . $filename
-                : $filename;
+            $folder = trim((string)$row['path'], '/');
+            $map[strtolower($filename)][(int)$row['id']] = $folder !== '' ? $folder . '/' . $filename : $filename;
         }
 
-        return $this->assetMap;
+        return $map;
     }
 
     /** @return string[] */

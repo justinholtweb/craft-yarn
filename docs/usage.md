@@ -55,14 +55,17 @@ looks identical to one nobody wants.
 
 The Assets and Entries indexes get two things:
 
-- a **Used by** column (table view → columns), showing how many elements relate to each row and
-  linking to Yarn’s view of it;
+- a **Used by** column (table view → columns), showing how many times each row is used — relation
+  fields, plus reference tags and hard-coded links when those sources are on — and linking to
+  Yarn’s view of it;
 - an **Is used** condition rule, in the index filter, custom sources and anywhere else Craft takes an
   asset or entry condition — so “unused images in this volume” is a filter you can combine with
   file kind, date and Craft’s bulk actions.
 
-Both count relation fields only, rolled up like the Relations panel, and both are a single
-query for the whole page — the rule is an `EXISTS` subquery, never a scan of the site.
+Both roll up nested blocks like the Relations panel does, and both work on the whole page at once.
+The rule counts relation fields only, as an `EXISTS` subquery. The column also counts links in
+field content, from a search of the rows that mention the page's elements, cached until the next
+save.
 
 ## Globals
 
@@ -82,7 +85,7 @@ daily or weekly. See [Configuration](configuration.md#findings-digest).
 ## Templates
 
 ```twig
-{# cheap: reads the relations table for one element #}
+{# cheap: relation fields, plus reference tags and links when those sources are on, for one element #}
 {{ craft.yarn.isUsed(asset) }}
 {{ craft.yarn.usageCount(asset) }}
 {{ craft.yarn.usedBy(entry) }}   {# elements that point at this one #}

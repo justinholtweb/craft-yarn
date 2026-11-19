@@ -7,6 +7,7 @@ use craft\base\Component;
 use craft\db\Query;
 use craft\db\Table;
 use craft\elements\User;
+use craft\models\GqlSchema;
 use justinholtweb\yarn\events\BuildGraphEvent;
 use justinholtweb\yarn\models\BuildContext;
 use justinholtweb\yarn\models\Edge;
@@ -166,18 +167,85 @@ class Graph extends Component
 
         $allowed = $this->viewableGroupKeys($user);
         $globals = array_flip(Craft::$app->getGlobals()->getEditableSetIds());
+
+        return $this->mask($graph, fn(int $id, Node $node) => match (true) {
+            $node->kind === Node::KIND_GLOBAL => isset($globals[$id]),
+            str_starts_with($node->groupKey, 'type:'), str_starts_with($node->groupKey, 'tagGroup:'), $node->groupKey === 'section:nested' => true,
+            default => isset($allowed[$node->groupKey]),
+        });
+    }
+
+    /**
+     * The graph as a GraphQL schema is allowed to see it — the same masking as
+     * {@see self::forUser()}, keyed on the schema's scopes instead of a user's permissions.
+     *
+     * Stricter than the control panel in two places, because a schema can be public: tags are
+     * masked unless the schema can read their group, and element types Yarn knows nothing about
+     * (`type:*` — Commerce addresses, a plugin's rows) are always masked. A schema created for an
+     * authenticated user (Craft 5.12+) is masked for that user instead.
+     */
+    public function forSchema(GraphModel $graph, GqlSchema $schema): GraphModel
+    {
+        $user = $schema->user ?? null;
+
+        if ($user instanceof User) {
+            return $this->forUser($graph, $user);
+        }
+
+        $pairs = $schema->getAllScopePairsForAction('read');
+        $uids = fn(string $scope) => array_flip(array_filter((array)($pairs[$scope] ?? []), 'is_string'));
+        $allowed = [];
+
+        foreach ([
+            ['sections', 'section', Craft::$app->getEntries()->getAllSections()],
+            ['volumes', 'volume', Craft::$app->getVolumes()->getAllVolumes()],
+            ['categorygroups', 'categoryGroup', Craft::$app->getCategories()->getAllGroups()],
+            ['taggroups', 'tagGroup', Craft::$app->getTags()->getAllTagGroups()],
+        ] as [$scope, $prefix, $models]) {
+            $readable = $uids($scope);
+
+            foreach ($models as $model) {
+                if (isset($readable[$model->uid])) {
+                    $allowed["$prefix:$model->id"] = true;
+                }
+            }
+        }
+
+        if (!empty($pairs['usergroups'])) {
+            $allowed['users'] = true;
+        }
+
+        $readableGlobals = $uids('globalsets');
+        $globals = [];
+
+        foreach (Craft::$app->getGlobals()->getAllSets() as $set) {
+            if (isset($readableGlobals[$set->uid])) {
+                $globals[$set->id] = true;
+            }
+        }
+
+        $nested = $allowed !== [] && array_filter(array_keys($allowed), fn(string $k) => str_starts_with($k, 'section:')) !== [];
+
+        return $this->mask($graph, fn(int $id, Node $node) => match (true) {
+            $node->kind === Node::KIND_GLOBAL => isset($globals[$id]),
+            // Rolled-up content lives under its owner; a stray nested node is as visible as entries are.
+            $node->groupKey === 'section:nested' => $nested,
+            default => isset($allowed[$node->groupKey]),
+        });
+    }
+
+    /**
+     * Replaces every node `$visible` rejects with a "Restricted element #id" copy that keeps its
+     * edges. Clones the graph only if something is actually masked.
+     *
+     * @param callable(int, Node): bool $visible
+     */
+    private function mask(GraphModel $graph, callable $visible): GraphModel
+    {
         $masked = null;
 
         foreach ($graph->nodes as $id => $node) {
-            $key = $node->groupKey;
-
-            $visible = match (true) {
-                $node->kind === Node::KIND_GLOBAL => isset($globals[$id]),
-                str_starts_with($key, 'type:'), str_starts_with($key, 'tagGroup:'), $key === 'section:nested' => true,
-                default => isset($allowed[$key]),
-            };
-
-            if ($visible) {
+            if ($visible($id, $node)) {
                 continue;
             }
 
@@ -236,6 +304,15 @@ class Graph extends Component
         $cache = Craft::$app->getCache();
         $cache->set(self::CACHE_STAMP_KEY, (int)$cache->get(self::CACHE_STAMP_KEY) + 1, 0);
         $this->memo = [];
+    }
+
+    /**
+     * The invalidation counter, for anything else cached on "until the next save" terms — the
+     * sidebar panel's content lookups, the index column's counts.
+     */
+    public function stamp(): int
+    {
+        return (int)Craft::$app->getCache()->get(self::CACHE_STAMP_KEY);
     }
 
     // ------------------------------------------------------------------------------- hydration
@@ -561,7 +638,7 @@ class Graph extends Component
 
     private function cacheKey(int $siteId): string
     {
-        $stamp = (int)Craft::$app->getCache()->get(self::CACHE_STAMP_KEY);
+        $stamp = $this->stamp();
 
         return sprintf('yarn:graph:%d:%s:%d', $siteId, $this->settings()->graphFingerprint(), $stamp);
     }

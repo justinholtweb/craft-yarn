@@ -20,9 +20,58 @@ Yes. Add the **Is used** rule to the Assets (or Entries) index filter, a custom 
 other asset or entry condition, and combine it with Craft’s own filters and bulk actions. There is
 also a **Used by** column you can switch on in the index’s table view.
 
-Both count **relation fields** only, like the Relations panel — they run as one database
-subquery, so they stay fast on a large volume. Reference tags and hard-coded links live inside
-field content and need the full graph; for those, use **Yarn → Assets**.
+The **Used by** column counts what the Relations panel counts: relation fields, plus reference tags
+and hard-coded links when those sources are switched on. The **Is used** rule counts relation
+fields only — it runs as one database subquery, and links inside field content can't be checked
+that way without guessing. So an asset that is only linked from a Table cell shows **1** in the
+column but still passes an “is not used” filter. For the full picture, use **Yarn → Assets**.
+
+### Does Yarn have a GraphQL API?
+
+Yes. Under **GraphQL → Schemas**, tick **Yarn → Query relations, findings and unused assets** on
+the schemas that should have it. It is off for every schema until you do. That schema then gets:
+
+| Query | What it answers |
+| --- | --- |
+| `yarnElement(id, site, depth)` | What points at an element, what it points at, and what deleting it would break |
+| `yarnFindings(site, checks, limit)` | The findings list, with a tally per check |
+| `yarnUnusedAssets(site, volume, limit)` | Assets nothing points at |
+| `yarnPath(fromId, toId, site, direction)` | The shortest chain of relations between two elements |
+| `yarnUsageCount(id, site)` | The Relations panel's count, without building the graph |
+
+```graphql
+{
+  yarnElement(id: 211) {
+    element { label health }
+    pointedAtBy { field kind elements { via node { id label editUrl } } }
+    deleteImpact { direct { id label } }
+  }
+}
+```
+
+Masking follows the schema's scope. An entry in a section the schema can't read, an asset in a
+volume it can't read, and so on, comes back as “Restricted element #id” and is still counted. Tags,
+global sets and element types Yarn has no special knowledge of are masked unless the schema can
+read them. Queries for a site the schema can't read are refused. On Craft 5.12+, requests made with
+an OAuth-authenticated user are masked for that user instead, as the control panel would mask them.
+
+Everything except `yarnUsageCount` reads the whole-site graph (cached like the control panel's)
+and is priced as CPU-heavy, so a schema's complexity limit applies.
+
+### Can an AI agent use Yarn?
+
+On Craft 5.12 and later, yes. Yarn adds four read-only tools to Craft's built-in MCP server:
+
+| Tool | What it answers |
+| --- | --- |
+| `yarn_element_relations` | What points at an element, what it points at, and what deleting it would leave pointing at nothing |
+| `yarn_findings` | The findings list, optionally for some checks only |
+| `yarn_unused_assets` | Assets nothing points at, optionally for one volume |
+| `yarn_path` | The shortest chain of relations from one element to another |
+
+Each needs the *See the site’s relations* permission. Each answers as the signed-in user, with the
+same “Restricted element” masking as the control panel. On older Craft versions nothing is
+registered and nothing changes.
 
 ### Is it safe to delete everything on the “unused assets” list?
 

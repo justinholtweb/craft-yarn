@@ -10,7 +10,9 @@ use justinholtweb\yarn\models\BuildContext;
 use justinholtweb\yarn\models\Edge;
 use justinholtweb\yarn\models\Graph as GraphModel;
 use justinholtweb\yarn\models\Node;
+use justinholtweb\yarn\models\Settings;
 use justinholtweb\yarn\Plugin;
+use justinholtweb\yarn\sources\ContentSource;
 use yii\db\Expression;
 
 /**
@@ -23,6 +25,11 @@ use yii\db\Expression;
  * The second exists because the sidebar panel renders on every element edit screen, and building
  * a whole-site graph to answer "is this in use" would put seconds on the load of a page nobody
  * opened Yarn to look at.
+ *
+ * {@see self::usages()} and {@see self::uses()} add reference tags and hard-coded links to that
+ * cheap path (GitHub #2): without them the panel said "pointed at by 0" for a PDF that Yarn's own
+ * element screen showed linked from a page. They read only the rows that could possibly mention
+ * the element, never the whole site, and are cached until the next element save.
  */
 class Relations extends Component
 {
@@ -133,13 +140,44 @@ class Relations extends Component
     // -------------------------------------------------------------------- the cheap single-shot
 
     /**
+     * Everything that points at this element without building the graph: relation fields, plus
+     * reference tags and hard-coded links when those sources are switched on.
+     *
+     * @return array<int, array{id: int, fieldId: int|null, viaId: int|null, kind: string}>
+     */
+    public function usages(int $elementId, ?int $siteId = null): array
+    {
+        $siteId ??= Craft::$app->getSites()->getCurrentSite()->id;
+
+        return array_merge(
+            $this->directUsages($elementId, $siteId),
+            $this->contentUsages([$elementId], $siteId)[$elementId] ?? [],
+        );
+    }
+
+    /**
+     * Everything this element points at, the same way.
+     *
+     * @return array<int, array{id: int, fieldId: int|null, viaId: int|null, kind: string}>
+     */
+    public function uses(int $elementId, ?int $siteId = null): array
+    {
+        $siteId ??= Craft::$app->getSites()->getCurrentSite()->id;
+
+        return array_merge(
+            $this->directUses($elementId, $siteId),
+            $this->contentUses($elementId, $siteId),
+        );
+    }
+
+    /**
      * Elements that point at this one, straight from the relations table.
      *
      * Rolled up the same way the graph rolls up, so an asset used inside a Matrix block is
      * reported as used by the page — which is what the person staring at the delete button needs
      * to know.
      *
-     * @return array<int, array{id: int, fieldId: int|null, viaId: int|null}>
+     * @return array<int, array{id: int, fieldId: int|null, viaId: int|null, kind: string}>
      */
     public function directUsages(int $elementId, ?int $siteId = null): array
     {
@@ -147,20 +185,21 @@ class Relations extends Component
     }
 
     /**
-     * @return array<int, array{id: int, fieldId: int|null, viaId: int|null}>
+     * @return array<int, array{id: int, fieldId: int|null, viaId: int|null, kind: string}>
      */
     public function directUses(int $elementId, ?int $siteId = null): array
     {
         return $this->directRelations($elementId, $siteId, 'sourceId', 'targetId');
     }
 
+    /** How many times something uses this element — {@see self::usages()}, counted. */
     public function countUsages(int $elementId, ?int $siteId = null): int
     {
-        return count($this->directUsages($elementId, $siteId));
+        return count($this->usages($elementId, $siteId));
     }
 
     /**
-     * @return array<int, array{id: int, fieldId: int|null, viaId: int|null}>
+     * @return array<int, array{id: int, fieldId: int|null, viaId: int|null, kind: string}>
      */
     private function directRelations(int $elementId, ?int $siteId, string $anchor, string $other): array
     {
@@ -214,6 +253,7 @@ class Relations extends Component
                 'id' => $id,
                 'fieldId' => $fieldId,
                 'viaId' => $id !== $raw ? $raw : null,
+                'kind' => Edge::KIND_FIELD,
             ];
         }
 
@@ -224,8 +264,9 @@ class Relations extends Component
      * "Used by" counts for a page of elements at once — the element index column.
      *
      * The same answer {@see self::countUsages()} gives one element at a time (relation fields,
-     * rolled up, distinct per using element and field), in one query plus the owner walk, however
-     * many rows the index is showing.
+     * rolled up, distinct per using element and field; plus content references, distinct per
+     * using element and kind), in one relations query, one content scan and the owner walk,
+     * however many rows the index is showing.
      *
      * @param int[] $ids
      * @return array<int, int> Every id asked about, 0 where nothing uses it.
@@ -262,6 +303,10 @@ class Relations extends Component
 
         $rows = $query->all();
 
+        foreach ($this->contentUsages($ids, $siteId) as $target => $usages) {
+            $counts[$target] += count($usages);
+        }
+
         if ($rows === []) {
             return $counts;
         }
@@ -291,7 +336,10 @@ class Relations extends Component
      * for `EXISTS` / `NOT EXISTS` in an element query, which is how the "Is used" condition rule
      * filters without building the graph or loading a single element.
      *
-     * Relation fields only, same as the sidebar panel and the index column. Roll-up does not
+     * Relation fields only — unlike the sidebar panel and the index column, which also read
+     * reference tags and links. Those can't be expressed as a subquery without matching raw JSON
+     * with LIKE and believing every hit, and a filter that calls an asset "used" because its
+     * filename appears in a sentence is worse than one that is honest about its scope. Roll-up does not
      * matter here: a nested block that relates to an asset means the asset is used whoever owns
      * the block.
      *
@@ -324,6 +372,228 @@ class Relations extends Component
         }
 
         return $query;
+    }
+
+    // ------------------------------------------------------- content references, one element at a time
+
+    /**
+     * Reference tags and hard-coded links pointing at the given elements.
+     *
+     * Two steps. A `LIKE` over `elements_sites.content` picks out the rows that could mention a
+     * target — its id inside a tag, its UID, its asset filename, the last segment of its URI —
+     * and then the very matcher the graph build uses reads those rows and decides. The prefilter
+     * is allowed to be loose; the matcher is what makes it right. Cached until the next element
+     * save, because the prefilter is a scan of the content column.
+     *
+     * A link to the homepage has nothing distinctive to search for, so the homepage's incoming
+     * links are left to the full graph.
+     *
+     * @param int[] $ids
+     * @return array<int, array<int, array{id: int, fieldId: null, viaId: int|null, kind: string}>> Target id => usages; only targets with some.
+     */
+    public function contentUsages(array $ids, int $siteId): array
+    {
+        $settings = Plugin::getInstance()->getSettings();
+        $wantsRefs = $settings->uses(Settings::SOURCE_REF_TAGS);
+        $wantsUrls = $settings->uses(Settings::SOURCE_URLS);
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+
+        if ((!$wantsRefs && !$wantsUrls) || $ids === []) {
+            return [];
+        }
+
+        sort($ids);
+
+        return $this->cached('in', $siteId, $ids, function() use ($ids, $siteId, $settings, $wantsRefs, $wantsUrls) {
+            $needles = $this->needles($ids, $siteId, $wantsRefs, $wantsUrls);
+
+            if ($needles === []) {
+                return [];
+            }
+
+            $column = Craft::$app->getDb()->getIsPgsql() ? 'CAST([[es.content]] AS TEXT)' : 'es.content';
+            $query = $this->liveContentRows($siteId)
+                ->andWhere(array_merge(['or'], array_map(fn(string $n) => ['like', $column, $n], $needles)));
+
+            $targets = array_flip($ids);
+            $found = [];
+
+            $this->scanContent($query, $siteId, $settings, function(Edge $edge) use ($targets, &$found) {
+                if (isset($targets[$edge->to])) {
+                    $found[$edge->to][$edge->from . ':' . $edge->kind] = [
+                        'id' => $edge->from,
+                        'fieldId' => null,
+                        'viaId' => $edge->viaId,
+                        'kind' => $edge->kind,
+                    ];
+                }
+            });
+
+            return array_map('array_values', $found);
+        });
+    }
+
+    /**
+     * Reference tags and hard-coded links in this element's own content — and, with roll-up on,
+     * in the content of the blocks it owns, which is where most of a page's links actually live.
+     *
+     * @return array<int, array{id: int, fieldId: null, viaId: int|null, kind: string}>
+     */
+    public function contentUses(int $elementId, int $siteId): array
+    {
+        $settings = Plugin::getInstance()->getSettings();
+
+        if (!$settings->uses(Settings::SOURCE_REF_TAGS) && !$settings->uses(Settings::SOURCE_URLS)) {
+            return [];
+        }
+
+        return $this->cached('out', $siteId, [$elementId], function() use ($elementId, $siteId, $settings) {
+            $ids = [$elementId];
+
+            if ($settings->rollUpNested) {
+                $frontier = [$elementId];
+
+                for ($round = 0; $frontier !== [] && $round < 10; $round++) {
+                    $frontier = array_values(array_diff(array_map('intval', (new Query())
+                        ->select(['eo.elementId'])
+                        ->from(['eo' => Table::ELEMENTS_OWNERS])
+                        ->innerJoin(['ne' => Table::ELEMENTS], '[[ne.id]] = [[eo.elementId]]')
+                        ->where(['eo.ownerId' => $frontier, 'ne.draftId' => null, 'ne.revisionId' => null])
+                        ->column()), $ids));
+                    $ids = array_merge($ids, $frontier);
+                }
+            }
+
+            $query = $this->liveContentRows($siteId)->andWhere(['es.elementId' => $ids]);
+            $found = [];
+
+            $this->scanContent($query, $siteId, $settings, function(Edge $edge) use ($elementId, &$found) {
+                if ($edge->from === $elementId) {
+                    $found[$edge->to . ':' . $edge->kind] = [
+                        'id' => $edge->to,
+                        'fieldId' => null,
+                        'viaId' => $edge->viaId,
+                        'kind' => $edge->kind,
+                    ];
+                }
+            });
+
+            return array_values($found);
+        });
+    }
+
+    /**
+     * What to search the content column for. Loose on purpose — see {@see self::contentUsages()}.
+     *
+     * @param int[] $ids
+     * @return string[]
+     */
+    private function needles(array $ids, int $siteId, bool $refs, bool $urls): array
+    {
+        $needles = [];
+
+        if ($refs) {
+            // `{entry:42}`, `{entry:42:url}`, `{entry:42@fr}`, `{entry:42||fallback}`, `{entry:42 || x}`
+            foreach ($ids as $id) {
+                foreach (['}', ':', '@', '|', ' '] as $after) {
+                    $needles[] = ':' . $id . $after;
+                }
+            }
+
+            foreach ((new Query())->select(['uid'])->from([Table::ELEMENTS])->where(['id' => $ids])->column() as $uid) {
+                $needles[] = (string)$uid;
+            }
+        }
+
+        if ($urls) {
+            $uris = (new Query())
+                ->select(['uri'])
+                ->from([Table::ELEMENTS_SITES])
+                ->where(['elementId' => $ids, 'siteId' => $siteId])
+                ->andWhere(['not', ['uri' => null]])
+                ->column();
+
+            foreach ($uris as $uri) {
+                // The last segment, never a slash: a JSON column may spell `/` as `\/`.
+                $segment = basename((string)$uri);
+
+                if ($segment !== '' && $uri !== '__home__') {
+                    $needles[] = $segment;
+                }
+            }
+
+            foreach ((new Query())->select(['filename'])->from([Table::ASSETS])->where(['id' => $ids])->column() as $filename) {
+                $needles[] = (string)$filename;
+            }
+        }
+
+        return array_values(array_unique($needles));
+    }
+
+    private function liveContentRows(int $siteId): Query
+    {
+        return (new Query())
+            ->select(['es.elementId', 'es.content'])
+            ->from(['es' => Table::ELEMENTS_SITES])
+            ->innerJoin(['e' => Table::ELEMENTS], '[[e.id]] = [[es.elementId]]')
+            ->where([
+                'es.siteId' => $siteId,
+                'e.draftId' => null,
+                'e.revisionId' => null,
+                'e.archived' => false,
+                'e.dateDeleted' => null,
+            ])
+            ->andWhere(['not', ['es.content' => null]]);
+    }
+
+    /**
+     * Runs the content matcher over a query's rows, in batches, rolling up only the ids it meets.
+     *
+     * @param callable(Edge): void $onEdge
+     */
+    private function scanContent(Query $query, int $siteId, Settings $settings, callable $onEdge): void
+    {
+        $context = new BuildContext($siteId, $settings, false);
+        $source = new ContentSource($context);
+        $source->lazyLookups = true;
+
+        foreach ($query->batch($settings->scanBatchSize) as $rows) {
+            $context->loadOwnershipFor(array_map(fn(array $row) => (int)$row['elementId'], $rows));
+
+            foreach ($source->scan($rows) as $edge) {
+                $onEdge($edge);
+            }
+        }
+    }
+
+    /**
+     * Cached on the same terms as the graph: the settings fingerprint and the counter every
+     * element save bumps.
+     *
+     * @template T
+     * @param int[] $ids
+     * @param callable(): T $compute
+     * @return T
+     */
+    private function cached(string $direction, int $siteId, array $ids, callable $compute): mixed
+    {
+        $plugin = Plugin::getInstance();
+        $duration = $plugin->getSettings()->cacheDuration;
+
+        if ($duration <= 0) {
+            return $compute();
+        }
+
+        $key = sprintf(
+            'yarn:content:%s:%d:%s:%d:%s',
+            $direction,
+            $siteId,
+            $plugin->getSettings()->graphFingerprint(),
+            $plugin->graph->stamp(),
+            md5(implode(',', $ids)),
+        );
+
+        return Craft::$app->getCache()->getOrSet($key, $compute, $duration);
     }
 
     /**

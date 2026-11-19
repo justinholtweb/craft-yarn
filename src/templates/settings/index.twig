@@ -234,6 +234,26 @@
 
             <h2>{{ "Elsewhere in the control panel"|t('yarn') }}</h2>
 
+            {{ forms.textField({
+                label: "Sidebar name"|t('yarn'),
+                instructions: "What Yarn is called in the control panel’s main navigation. Leave blank for “Yarn”."|t('yarn'),
+                name: 'settings[navLabel]',
+                value: settings.navLabel,
+                placeholder: 'Yarn',
+                maxlength: 40,
+                disabled: readOnly,
+                errors: settings.getErrors('navLabel'),
+            }) }}
+
+            {{ forms.iconPickerField({
+                label: "Sidebar icon"|t('yarn'),
+                instructions: "The icon next to it in the main navigation. Leave blank for Yarn’s own."|t('yarn'),
+                name: 'settings[navIcon]',
+                value: settings.navIcon,
+                disabled: readOnly,
+                errors: settings.getErrors('navIcon'),
+            }) }}
+
             {{ forms.lightswitchField({
                 label: "Show the Relations panel"|t('yarn'),
                 instructions: "Adds a Relations panel to the sidebar of every element edit screen."|t('yarn'),

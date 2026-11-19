@@ -1,5 +1,21 @@
 # Release Notes for Yarn
 
+## 5.3.0 — 2026-11-19
+
+### Fixed
+
+- **The Relations panel now counts hard-coded links and reference tags** ([#2](https://github.com/justinholtweb/craft-yarn/issues/2)). A link in a Table cell showed on Yarn's own screen for an element but not in the sidebar panel, on either end, because the panel only read relation fields. The panel now reads both, without building the whole graph. It searches only the content rows that could mention the element, checks them with the same matcher the graph uses, and caches the answer until the next save. The **Used by** column, `craft.yarn.usedBy()`, `uses()`, `usageCount()`, `isUsed()` and the deletion log count the same way.
+
+### Added
+
+- **MCP tools** for Craft 5.12's built-in MCP server: `yarn_element_relations`, `yarn_findings`, `yarn_unused_assets` and `yarn_path`. They are read-only, need the *See the site’s relations* permission, and mask restricted elements as the control panel does. On older Craft versions nothing is registered. They return the same shapes as the GraphQL queries.
+- **GraphQL.** A *Yarn* schema component, off until you tick it, adds `yarnElement`, `yarnFindings`, `yarnUnusedAssets`, `yarnPath` and `yarnUsageCount`. Elements the schema can't read come back as “Restricted element #id” and still count. On Craft 5.12+, OAuth-authenticated requests are masked for their user.
+- **Sidebar name** and **Sidebar icon** settings (`navLabel`, `navIcon`), to rename Yarn in the control panel navigation and pick its icon from Craft's icon picker.
+
+### Changed
+
+- The **Is used** condition rule still counts relation fields only, so it agrees with its own database subquery. An asset linked only from content now shows a count in the **Used by** column but still matches “is not used”. This is documented.
+
 ## 5.2.0 — 2026-10-13
 
 ### Added

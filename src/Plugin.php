@@ -12,22 +12,29 @@ use craft\elements\User;
 use craft\events\DefineAttributeHtmlEvent;
 use craft\events\DefineHtmlEvent;
 use craft\events\ElementEvent;
+use craft\events\RegisterComponentTypesEvent;
 use craft\events\RegisterConditionRulesEvent;
 use craft\events\RegisterElementTableAttributesEvent;
+use craft\events\RegisterGqlQueriesEvent;
+use craft\events\RegisterGqlSchemaComponentsEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\helpers\Html;
 use craft\helpers\UrlHelper;
 use craft\log\MonologTarget;
 use craft\services\Elements;
+use craft\services\Gql;
 use craft\services\UserPermissions;
 use craft\web\Application as WebApplication;
 use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
 use craft\web\View;
 use justinholtweb\yarn\conditions\IsUsedConditionRule;
+use justinholtweb\yarn\gql\Queries as GqlQueries;
+use justinholtweb\yarn\mcp\YarnTools;
 use justinholtweb\yarn\models\Node;
 use justinholtweb\yarn\models\Settings;
+use justinholtweb\yarn\services\Api;
 use justinholtweb\yarn\services\Digest;
 use justinholtweb\yarn\services\Export;
 use justinholtweb\yarn\services\Findings;
@@ -42,6 +49,7 @@ use yii\base\Event;
  * Yarn — every relation on the site, from both ends.
  *
  * @property-read Graph $graph
+ * @property-read Api $api
  * @property-read Relations $relations
  * @property-read Findings $findings
  * @property-read Export $export
@@ -79,6 +87,7 @@ class Plugin extends BasePlugin
         return [
             'components' => [
                 'graph' => Graph::class,
+                'api' => Api::class,
                 'relations' => Relations::class,
                 'findings' => Findings::class,
                 'export' => Export::class,
@@ -99,6 +108,8 @@ class Plugin extends BasePlugin
         $this->registerCacheInvalidation();
         $this->registerUsageColumn();
         $this->registerConditionRules();
+        $this->registerMcp();
+        $this->registerGql();
 
         // Both of these render or read inside the control panel only, and both cost something on
         // every element save. Nothing here should load on a front-end request.
@@ -142,6 +153,51 @@ class Plugin extends BasePlugin
             } catch (Throwable $e) {
                 Craft::warning('Could not check the digest schedule: ' . $e->getMessage(), self::LOG_CATEGORY);
             }
+        });
+    }
+
+    /**
+     * Yarn's tools on Craft's built-in MCP server.
+     *
+     * The server arrived in Craft 5.12 and Yarn supports 5.3, so this checks for the service class
+     * rather than a version number: below 5.12 nothing is registered and {@see YarnTools} is never
+     * loaded.
+     */
+    private function registerMcp(): void
+    {
+        $service = 'craft\\services\\Mcp';
+
+        if (!class_exists($service)) {
+            return;
+        }
+
+        Event::on($service, 'registerCapabilityTypes', function(RegisterComponentTypesEvent $event) {
+            $event->types[] = YarnTools::class;
+        });
+    }
+
+    /**
+     * GraphQL: a "Query Yarn" schema component, and the queries it unlocks.
+     *
+     * Off for every schema until an admin ticks it — a public schema that could list every
+     * unused asset on the site is not something to switch on by default. On Craft 5.12+ the
+     * component is also offered to OAuth-authenticated requests from users who can see Yarn, and
+     * those are masked for that user rather than by the schema's scopes.
+     */
+    private function registerGql(): void
+    {
+        Event::on(Gql::class, Gql::EVENT_REGISTER_GQL_SCHEMA_COMPONENTS, function(RegisterGqlSchemaComponentsEvent $event) {
+            $event->queries[Craft::t('yarn', 'Yarn')] = [
+                GqlQueries::COMPONENT . ':read' => [
+                    'label' => Craft::t('yarn', 'Query relations, findings and unused assets'),
+                    'info' => Craft::t('yarn', 'Elements this schema can’t read are shown as “Restricted element #id”, still counted.'),
+                    'authenticated' => fn(User $user) => $user->can(self::PERMISSION_VIEW),
+                ],
+            ];
+        });
+
+        Event::on(Gql::class, Gql::EVENT_REGISTER_GQL_QUERIES, function(RegisterGqlQueriesEvent $event) {
+            $event->queries = array_merge($event->queries, GqlQueries::get());
         });
     }
 
@@ -329,8 +385,8 @@ class Plugin extends BasePlugin
     private function elementPanelHtml(Element $element): string
     {
         $siteId = $element->siteId ?? Craft::$app->getSites()->getCurrentSite()->id;
-        $usages = $this->relations->directUsages($element->id, $siteId);
-        $uses = $this->relations->directUses($element->id, $siteId);
+        $usages = $this->relations->usages($element->id, $siteId);
+        $uses = $this->relations->uses($element->id, $siteId);
 
         return Craft::$app->getView()->renderTemplate('yarn/_partials/panel', [
             'element' => $element,
@@ -370,7 +426,7 @@ class Plugin extends BasePlugin
                 }
 
                 try {
-                    $usages = $this->relations->directUsages($element->id, $element->siteId);
+                    $usages = $this->relations->usages($element->id, $element->siteId);
                 } catch (Throwable $e) {
                     Craft::warning('Could not read relations before a delete: ' . $e->getMessage(), self::LOG_CATEGORY);
                     return;
@@ -398,6 +454,16 @@ class Plugin extends BasePlugin
     {
         $item = parent::getCpNavItem();
         $user = Craft::$app->getUser();
+        /** @var Settings $settings */
+        $settings = $this->getSettings();
+
+        if ($settings->navLabel !== '') {
+            $item['label'] = $settings->navLabel;
+        }
+
+        if ($settings->navIcon !== '') {
+            $item['icon'] = $settings->navIcon;
+        }
 
         $item['subnav'] = [
             'map' => ['label' => Craft::t('yarn', 'Map'), 'url' => 'yarn'],

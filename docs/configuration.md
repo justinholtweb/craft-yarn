@@ -142,9 +142,19 @@ Stop after this many circular relations. Default 20; the twentieth tells you not
 On by default. Adds a **Relations** panel to the sidebar of every element edit screen, saying what
 points at this element before you delete it.
 
-The panel reads the relations table directly rather than assembling the whole graph — it renders
-on every edit screen on the site, and a graph build is not something to do on the way to an edit
-form. It therefore counts relation **fields** only; the full picture is one click away.
+The panel never assembles the whole graph. It renders on every edit screen on the site, and a graph
+build is not something to do on the way to an edit form. Relation fields come straight from the
+relations table. Reference tags and hard-coded links (when those sources are on) come from a search
+of only the content rows that could mention this element: its id, its UID, its filename, the end
+of its URI. The same matcher the graph uses then checks those rows. The answer is cached until the
+next element save. Links to the homepage are the exception: `/` has nothing distinctive to search
+for, so the panel leaves those to the full picture, which is one click away.
+
+### `navLabel` and `navIcon`
+
+What Yarn is called in the control panel's main navigation, and the icon beside it. Both are blank
+by default, which keeps “Yarn” and its own icon. `navIcon` takes a Craft icon name
+(`diagram-project`), picked with the icon picker on the settings screen.
 
 ### `deleteGuard` and `deleteGuardKinds`
 

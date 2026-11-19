@@ -30,13 +30,73 @@ class BuildContext
     /** @var int[]|null Field ids the settings say to ignore. */
     private ?array $ignoredFieldIds = null;
 
+    /**
+     * @param bool $wholeSite Load the whole of `elements_owners` up front. Right for a graph
+     * build; ruinous for the sidebar panel, which passes false and calls
+     * {@see self::loadOwnershipFor()} with only the ids it is about to roll up.
+     */
     public function __construct(
         public int $siteId,
         public Settings $settings,
+        bool $wholeSite = true,
     ) {
-        if ($settings->rollUpNested) {
+        if ($settings->rollUpNested && $wholeSite) {
             $this->loadOwnership();
         }
+    }
+
+    /**
+     * Ownership for a handful of ids, walked up a level at a time.
+     *
+     * Owners that are drafts or revisions are skipped: in Craft 5 a draft shares its canonical's
+     * nested entries through `elements_owners`, and rolling a block up to the draft would report
+     * the page as used by a draft nobody can see in the index.
+     *
+     * @param int[] $ids
+     */
+    public function loadOwnershipFor(array $ids): void
+    {
+        if (!$this->settings->rollUpNested) {
+            return;
+        }
+
+        $pending = array_values(array_diff(array_unique(array_map('intval', $ids)), array_keys($this->ownerOf)));
+
+        for ($round = 0; $pending !== [] && $round < 10; $round++) {
+            $owners = (new Query())
+                ->select(['eo.elementId', 'eo.ownerId'])
+                ->from(['eo' => Table::ELEMENTS_OWNERS])
+                ->innerJoin(['oe' => Table::ELEMENTS], '[[oe.id]] = [[eo.ownerId]]')
+                ->where(['eo.elementId' => $pending, 'oe.draftId' => null, 'oe.revisionId' => null])
+                ->pairs();
+
+            if ($owners === []) {
+                break;
+            }
+
+            foreach ($owners as $elementId => $ownerId) {
+                $this->ownerOf[(int)$elementId] = (int)$ownerId;
+            }
+
+            $fields = (new Query())
+                ->select(['id', 'fieldId'])
+                ->from([Table::ENTRIES])
+                ->where(['id' => array_keys($owners)])
+                ->andWhere(['not', ['fieldId' => null]])
+                ->pairs();
+
+            foreach ($fields as $id => $fieldId) {
+                $this->fieldOf[(int)$id] = (int)$fieldId;
+            }
+
+            $pending = array_values(array_diff(
+                array_unique(array_map('intval', array_values($owners))),
+                array_keys($this->ownerOf),
+            ));
+        }
+
+        // Anything resolved before this call may now resolve further.
+        $this->resolved = [];
     }
 
     /**
