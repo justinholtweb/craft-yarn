@@ -50,7 +50,7 @@ class ContentSource extends BaseEdgeSource
     /**
      * References that pointed at nothing.
      *
-     * @var array<int, array{elementId: int, reference: string, type: string}>
+     * @var array<int, array{elementId: int, ownerId?: int, reference: string, type: string}>
      */
     public array $unresolved = [];
 
@@ -772,8 +772,14 @@ class ContentSource extends BaseEdgeSource
             return;
         }
 
+        // The element a reader would open, recorded now while roll-up is at hand: a reference
+        // found inside a Matrix block is keyed by the block, which is not a node, and both the
+        // findings screen and permission masking need the page it belongs to.
+        [$ownerId] = $this->context->rollUp($elementId);
+
         $this->unresolved[] = [
             'elementId' => $elementId,
+            'ownerId' => $ownerId,
             'reference' => $reference,
             'type' => $kind,
         ];

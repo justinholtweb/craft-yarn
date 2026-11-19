@@ -285,7 +285,7 @@ ddev exec php /var/www/craft-yarn/tests/integration/digest.php     # digest: set
 ddev exec php /var/www/craft-yarn/tests/integration/digest-http.php # test-send endpoint: POST/CSRF/permission, no nested forms
 ddev exec php /var/www/craft-yarn/tests/integration/usage.php      # Used by column + Is used rule against real queries
 ddev exec php /var/www/craft-yarn/tests/integration/panel.php      # 23: panel counts content links (#2), drafts, roll-up, MCP tools (direct + stdio server), nav settings
-ddev exec php /var/www/craft-yarn/tests/integration/gql.php        # 12: schema component, every query, masking by scope (one process per query)
+ddev exec php /var/www/craft-yarn/tests/integration/gql.php        # 15: schema component, every query, masking by scope (one process per query)
 node --test ~/Sites/craft-yarn/tests/js/map.test.mjs                # 9: map framing, settle refit, hub stability, selectize wiring (on the Mac)
 ddev exec bash -c 'find /var/www/craft-yarn/src -name "*.php" -print0 | xargs -0 -n1 php -l'
 ddev exec -d /var/www/craft-yarn vendor/bin/phpunit                # 42 unit tests

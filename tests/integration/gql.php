@@ -257,6 +257,80 @@ if ($entrySection === null || $asset === null) {
         return ($label !== null && $label !== $asset['filename'] && str_starts_with($label, 'Restricted element')) ?: errors($result) . json_encode($label);
     });
 
+    check('a broken reference in a page the schema can’t read doesn’t leak its text', function() use ($siteScopes, $volumeScopes, $full, $page, $site, $plugin, $link) {
+        Db::update(Table::ELEMENTS_SITES, ['content' => [
+            'abc123' => [['col1' => 'Download', 'col2' => $link]],
+            'def456' => '<a href="{entry:987654321:url}">secret-slug-yarn</a>',
+        ]], ['elementId' => $page->id, 'siteId' => $site->id]);
+        $plugin->graph->invalidate();
+
+        $query = '{ yarnFindings(checks: ["unresolvedReferences"], limit: 500) { findings { title context subject { id label } } } }';
+        $open = json_encode(gql($full, $query));
+        $closed = json_encode(gql(schema(array_merge(['yarn:read'], $siteScopes, $volumeScopes)), $query));
+
+        return (str_contains($open, '987654321') && !str_contains($closed, '987654321') && str_contains($closed, 'restricted element'))
+            ?: 'full schema saw it: ' . var_export(str_contains($open, '987654321'), true) . '; restricted: ' . substr($closed, 0, 400);
+    });
+
+    check('a schema that may read one user group does not reveal other users', function() use ($plugin, $site) {
+        $graph = $plugin->graph->get($site->id);
+        $userIds = array_keys(array_filter($graph->nodes, fn($n) => $n->kind === 'user'));
+        $group = Craft::$app->getUserGroups()->getAllGroups()[0] ?? null;
+
+        if ($userIds === [] || $group === null) {
+            return true; // no users in the graph, or no groups to scope to
+        }
+
+        $one = new craft\models\GqlSchema(['scope' => ["usergroups.$group->uid:read"]]);
+        $everyone = new craft\models\GqlSchema(['scope' => ['usergroups.everyone:read']]);
+        $label = fn(craft\models\GqlSchema $schema) => $plugin->graph->forSchema($graph, $schema)->node($userIds[0])->label;
+
+        return (str_starts_with($label($one), 'Restricted element') && !str_starts_with($label($everyone), 'Restricted element'))
+            ?: json_encode([$label($one), $label($everyone)]);
+    });
+
+    check('an unresolved reference is judged by the page it was found on, and fails closed', function() use ($plugin, $site, $page) {
+        $everything = ['usergroups.everyone:read'];
+
+        foreach ([
+            'sections' => Craft::$app->getEntries()->getAllSections(),
+            'volumes' => Craft::$app->getVolumes()->getAllVolumes(),
+            'categorygroups' => Craft::$app->getCategories()->getAllGroups(),
+            'taggroups' => Craft::$app->getTags()->getAllTagGroups(),
+            'globalsets' => Craft::$app->getGlobals()->getAllSets(),
+        ] as $scope => $models) {
+            foreach ($models as $model) {
+                $everything[] = "$scope.$model->uid:read";
+            }
+        }
+
+        $graph = clone $plugin->graph->get($site->id);
+        $graph->unresolved = [
+            // Found in a nested block (id not a node) on a page the schema can read.
+            ['elementId' => 987654320, 'ownerId' => $page->id, 'reference' => '/kept-yarn', 'type' => 'url'],
+            // Found on something that isn't in the graph at all.
+            ['elementId' => 987654321, 'ownerId' => 987654321, 'reference' => '/orphan-yarn', 'type' => 'url'],
+            // From a graph cached before ownerId existed, in a nested block.
+            ['elementId' => 987654322, 'reference' => '/legacy-yarn', 'type' => 'url'],
+        ];
+
+        $refs = fn(array $scope) => array_column($plugin->graph->forSchema($graph, new craft\models\GqlSchema(['scope' => $scope]))->unresolved, 'reference');
+        $all = $refs($everything);
+        $withoutSection = $refs(array_values(array_filter($everything, fn($s) => !str_starts_with($s, 'sections.'))));
+        $finding = null;
+
+        foreach (Plugin::getInstance()->findings->run($graph, ['unresolvedReferences']) as $f) {
+            if (($f->context['reference'] ?? null) === '/kept-yarn') {
+                $finding = $f;
+            }
+        }
+
+        return ($all[0] === '/kept-yarn' && $all[1] !== '/orphan-yarn' && $all[2] !== '/legacy-yarn'
+            && $withoutSection[0] !== '/kept-yarn'
+            && $finding?->subject?->id === $page->id)
+            ?: json_encode(['all' => $all, 'withoutSection' => $withoutSection, 'subject' => $finding?->subject?->id]);
+    });
+
     check('without any site, every Yarn query refuses', function() use ($sectionScopes) {
         $result = gql(schema(array_merge(['yarn:read'], $sectionScopes)), '{ yarnUsageCount(id: 1) }');
 

@@ -211,7 +211,10 @@ class Graph extends Component
             }
         }
 
-        if (!empty($pairs['usergroups'])) {
+        // Every user, or none. Yarn's user nodes don't record their groups, and a user's label
+        // falls back to their email address — a schema that may read one group must not be able
+        // to list everybody else's.
+        if (in_array('everyone', (array)($pairs['usergroups'] ?? []), true)) {
             $allowed['users'] = true;
         }
 
@@ -224,7 +227,13 @@ class Graph extends Component
             }
         }
 
-        $nested = $allowed !== [] && array_filter(array_keys($allowed), fn(string $k) => str_starts_with($k, 'section:')) !== [];
+        // A nested node doesn't record which section its page is in, so it is shown only to a
+        // schema that can read every section.
+        $nested = true;
+
+        foreach (Craft::$app->getEntries()->getAllSections() as $model) {
+            $nested = $nested && isset($allowed["section:$model->id"]);
+        }
 
         return $this->mask($graph, fn(int $id, Node $node) => match (true) {
             $node->kind === Node::KIND_GLOBAL => isset($globals[$id]),
@@ -237,6 +246,11 @@ class Graph extends Component
     /**
      * Replaces every node `$visible` rejects with a "Restricted element #id" copy that keeps its
      * edges. Clones the graph only if something is actually masked.
+     *
+     * Unresolved references are redacted too: their text is a piece of the element's content.
+     * Each is checked against the page it was found on (`ownerId`, rolled up at scan time), and
+     * redacted whenever that page isn't a node it can check — fail closed, whether or not
+     * anything else was masked.
      *
      * @param callable(int, Node): bool $visible
      */
@@ -256,6 +270,24 @@ class Graph extends Component
             $copy->groupKey = 'restricted';
             $copy->uri = null;
             $masked->nodes[$id] = $copy;
+        }
+
+        $unresolved = $graph->unresolved;
+        $redacted = false;
+
+        foreach ($unresolved as $i => $row) {
+            $ownerId = (int)($row['ownerId'] ?? $row['elementId']);
+            $owner = $graph->node($ownerId);
+
+            if ($owner === null || !$visible($ownerId, $owner)) {
+                $unresolved[$i]['reference'] = Craft::t('yarn', '(in a restricted element)');
+                $redacted = true;
+            }
+        }
+
+        if ($redacted) {
+            $masked ??= clone $graph;
+            $masked->unresolved = $unresolved;
         }
 
         return $masked ?? $graph;

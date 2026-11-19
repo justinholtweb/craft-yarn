@@ -217,7 +217,8 @@ class Findings extends Component
         $findings = [];
 
         foreach ($graph->unresolved as $row) {
-            $node = $graph->node($row['elementId']);
+            // ownerId is absent from graphs cached before 5.3.1.
+            $node = $graph->node((int)($row['ownerId'] ?? $row['elementId']));
             $isRefTag = $row['type'] === Edge::KIND_REF;
 
             $findings[] = new Finding(

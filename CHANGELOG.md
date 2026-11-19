@@ -1,5 +1,16 @@
 # Release Notes for Yarn
 
+## 5.3.1 — 2026-11-19
+
+### Security
+
+- **GraphQL and restricted users: unresolved references no longer show their text from elements the reader can't see.** The “References that resolve to nothing” finding included the raw link or reference tag, even when the element it came from was masked. It now reads “(in a restricted element)”. Each reference is checked against the page it was found on, and is redacted whenever that page can't be checked. This affects GraphQL schemas with the Yarn component and non-admin control panel users. Admins see everything, as before.
+
+### Fixed
+
+- A broken reference found inside a Matrix block now names the page it is on in Findings, instead of no element at all.
+- **GraphQL: user and nested-entry masking is stricter.** A schema that could read one user group could see every user's name, which falls back to their email address. Users are now visible only to schemas that can read all users. Nested entries are visible only to schemas that can read every section.
+
 ## 5.3.0 — 2026-11-19
 
 ### Fixed

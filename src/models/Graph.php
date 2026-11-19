@@ -45,7 +45,7 @@ class Graph
          * References in content that pointed at nothing — a `{entry:412:url}` whose entry is
          * gone, or a link to a URL no element answers.
          *
-         * @var array<int, array{elementId: int, reference: string, type: string}>
+         * @var array<int, array{elementId: int, ownerId?: int, reference: string, type: string}>
          */
         public array $unresolved = [],
     ) {
